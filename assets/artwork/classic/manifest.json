@@ -4103,13 +4103,9 @@
     "source": "audubon",
     "url": "https://commons.wikimedia.org/wiki/File:Robert_Havell_after_John_James_Audubon,_Brown-Headed_Nuthatch,_1831,_NGA_32266.jpg"
   },
-  "birds/sitta-pygmaea-2.webp": {
+  "birds/sitta-pygmaea.webp": {
     "source": "audubon",
     "url": "https://commons.wikimedia.org/wiki/File:415_I._Brown_Creeper_-_2._Californian_Nuthatch.jpg"
-  },
-  "birds/sitta-pygmaea.webp": {
-    "source": "fuertes",
-    "url": "https://commons.wikimedia.org/wiki/File:Bird-lore_(1915)_(14755098432).jpg"
   },
   "birds/somateria-mollissima-2.webp": {
     "source": "vonwright",
@@ -4811,24 +4807,40 @@
     "source": "levaillant",
     "url": "https://commons.wikimedia.org/wiki/File:Zosterops_capensis_-_1796-1808_-_Print_-_Iconographia_Zoologica_-_Special_Collections_University_of_Amsterdam_-_UBA01_IZ19200081.tif"
   },
-  "perches/alder-catkins.webp": {
-    "source": "vonwright",
-    "url": "https://commons.wikimedia.org/wiki/File:Bird_illustration_from_Svenska_F%C3%A5glar_(Swedish_Birds)_by_the_von_Wright_brothers_from_rawpixel%27s_original_edition_of_the_publication_00091.jpg"
-  },
   "perches/birch-twig.webp": {
-    "source": "vonwright",
-    "url": "https://commons.wikimedia.org/wiki/File:Bird_illustration_from_Svenska_F%C3%A5glar_(Swedish_Birds)_by_the_von_Wright_brothers_from_rawpixel%27s_original_edition_of_the_publication_00229.jpg"
+    "source": "michaux",
+    "url": "https://commons.wikimedia.org/wiki/File:NAS-070_Betula_pendula.png"
   },
-  "perches/lichen-log.webp": {
-    "source": "vonwright",
-    "url": "https://commons.wikimedia.org/wiki/File:Bird_illustration_from_Svenska_F%C3%A5glar_(Swedish_Birds)_by_the_von_Wright_brothers_from_rawpixel%27s_original_edition_of_the_publication_00239.jpg"
+  "perches/blackthorn-branch.webp": {
+    "source": "palmstruch",
+    "url": "https://archive.org/details/svenskbotanik03palm/page/n32"
+  },
+  "perches/cherry-branch.webp": {
+    "source": "koehler",
+    "url": "https://commons.wikimedia.org/wiki/File:K%C3%B6hler%27s_Medizinal-Pflanzen_in_naturgetreuen_Abbildungen_mit_kurz_erl%C3%A4uterndem_Texte_(Plate_36)_BHL303634.jpg"
+  },
+  "perches/hawthorn-branch.webp": {
+    "source": "palmstruch",
+    "url": "https://archive.org/details/svenskbotanik03palm/page/n56"
+  },
+  "perches/jack-pine-bough.webp": {
+    "source": "michaux",
+    "url": "https://commons.wikimedia.org/wiki/File:NAS-136_Pinus_banksiana.png"
+  },
+  "perches/juniper-sprig.webp": {
+    "source": "koehler",
+    "url": "https://commons.wikimedia.org/wiki/File:K%C3%B6hler%27s_Medizinal-Pflanzen_in_naturgetreuen_Abbildungen_mit_kurz_erl%C3%A4uterndem_Texte_(Plate_53)_BHL303668.jpg"
+  },
+  "perches/oak-shoot.webp": {
+    "source": "palmstruch",
+    "url": "https://archive.org/details/svenskbotanik02palm/page/n8"
   },
   "perches/pine-bough.webp": {
-    "source": "vonwright",
-    "url": "https://commons.wikimedia.org/wiki/File:Bird_illustration_from_Svenska_F%C3%A5glar_(Swedish_Birds)_by_the_von_Wright_brothers_from_rawpixel%27s_original_edition_of_the_publication_00088.jpg"
+    "source": "koehler",
+    "url": "https://commons.wikimedia.org/wiki/File:K%C3%B6hler%27s_Medizinal-Pflanzen_in_naturgetreuen_Abbildungen_mit_kurz_erl%C3%A4uterndem_Texte_(Plate_7)_BHL303574.jpg"
   },
-  "perches/pine-sprig.webp": {
-    "source": "vonwright",
-    "url": "https://commons.wikimedia.org/wiki/File:Bird_illustration_from_Svenska_F%C3%A5glar_(Swedish_Birds)_by_the_von_Wright_brothers_from_rawpixel%27s_original_edition_of_the_publication_00092.jpg"
+  "perches/spruce-bough.webp": {
+    "source": "koehler",
+    "url": "https://commons.wikimedia.org/wiki/File:K%C3%B6hler%27s_Medizinal-Pflanzen_in_naturgetreuen_Abbildungen_mit_kurz_erl%C3%A4uterndem_Texte_(Plate_8)_BHL303576.jpg"
   }
 }
