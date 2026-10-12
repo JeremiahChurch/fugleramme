@@ -1787,6 +1787,18 @@
    681
   ]
  },
+ "birds/baeolophus-bicolor-2.webp": {
+  "box": [
+   0.0,
+   0.0,
+   1.0,
+   0.92
+  ],
+  "cut": [
+   1184,
+   1200
+  ]
+ },
  "birds/baeolophus-bicolor.webp": {
   "box": [
    0.26489152885935313,
