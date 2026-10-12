@@ -140,8 +140,13 @@ Public domain. Manifest key: `legge`.
 
 **Swainson** - *Zoological Illustrations* by
 **William Swainson** (1829), from the [Wikimedia Commons collection](https://commons.wikimedia.org/wiki/Category:Zoological_Illustrations_Volume_I);
-and his plates for *A Fasciculus of the Birds of China* by **G. R. Gray** (1871), Cornell University Library and Museums Victoria scans via the [Biodiversity Heritage Library](https://www.biodiversitylibrary.org/) and the Internet Archive, and *Fauna Boreali-Americana* with **John Richardson** (1831), Smithsonian Libraries scans on the [Internet Archive](https://archive.org/details/faunaborealiamer22rich).
+and his plates for *A Fasciculus of the Birds of China* by **G. R. Gray** (1871), Cornell University Library and Museums Victoria scans via the [Biodiversity Heritage Library](https://www.biodiversitylibrary.org/) and the Internet Archive, and *Fauna Boreali-Americana* with **John Richardson** (1831), Smithsonian Libraries scans on the [Internet Archive](https://archive.org/details/faunaborealiamer22rich);
+and *A Selection of the Birds of Brazil and Mexico* (1841), from [Wikimedia Commons](https://commons.wikimedia.org/).
 Public domain. Manifest key: `swainson`.
+
+**Sharpe** - *A Monograph of the Hirundinidae, or Family of Swallows* by
+**Richard Bowdler Sharpe** and **Claude Wilmott Wyatt** (1885-1894), from
+[Wikimedia Commons](https://commons.wikimedia.org/). Public domain. Manifest key: `sharpe`.
 
 **Jardine** - *Illustrations of
 Ornithology* by **William Jardine** and **Prideaux John Selby** (1826-1835),
