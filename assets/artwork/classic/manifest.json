@@ -1095,6 +1095,10 @@
     "source": "vonwright",
     "url": "https://commons.wikimedia.org/wiki/File:Bird_illustration_from_Svenska_F%C3%A5glar_(Swedish_Birds)_by_the_von_Wright_brothers_from_rawpixel%27s_original_edition_of_the_publication_00194.jpg"
   },
+  "birds/chenonetta-jubata.webp": {
+    "source": "gould",
+    "url": "https://archive.org/details/birdsAustraliav7Goul/page/n19/mode/1up"
+  },
   "birds/chlidonias-hybrida.webp": {
     "source": "gould",
     "url": "https://commons.wikimedia.org/wiki/File:GouldBirdsEuropeVMoustache_Tern.jpg"
@@ -1618,6 +1622,10 @@
   "birds/cyanopica-cyanus.webp": {
     "source": "siebold",
     "url": "https://archive.org/details/faunajaponicasi4sieb/page/n270/mode/1up"
+  },
+  "birds/cygnus-atratus.webp": {
+    "source": "gould",
+    "url": "https://archive.org/details/birdsAustraliav7Goul/page/n31/mode/1up"
   },
   "birds/cygnus-columbianus.webp": {
     "source": "gould",
@@ -2330,6 +2338,10 @@
   "birds/hippolais-polyglotta.webp": {
     "source": "desmurs",
     "url": "https://commons.wikimedia.org/wiki/File:Hippolais_polyglotta_%26_Hippolais_icterina_1849.jpg"
+  },
+  "birds/hirundo-neoxena.webp": {
+    "source": "gould",
+    "url": "https://archive.org/details/birdsAustraliav2Goul/page/n59/mode/1up"
   },
   "birds/hirundo-rustica-2.webp": {
     "source": "vonwright",
@@ -3203,6 +3215,10 @@
     "source": "dresser",
     "url": "https://commons.wikimedia.org/wiki/File:Panurus_biarmicus_(Dresser).jpg"
   },
+  "birds/pardalotus-punctatus.webp": {
+    "source": "gould",
+    "url": "https://archive.org/details/birdsAustraliav2Goul/page/n147/mode/1up"
+  },
   "birds/parus-cinereus.webp": {
     "source": "gould",
     "url": "https://archive.org/details/BirdsAsiaJohnGoIIGoul/page/n227"
@@ -3602,6 +3618,10 @@
   "birds/platycercus-elegans.webp": {
     "source": "gould",
     "url": "https://www.biodiversitylibrary.org/page/48401022"
+  },
+  "birds/platycercus-eximius.webp": {
+    "source": "gould",
+    "url": "https://archive.org/details/birdsAustraliav5Goul/page/n115/mode/1up"
   },
   "birds/plectrophenax-nivalis-2.webp": {
     "source": "vonwright",

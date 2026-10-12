@@ -3287,6 +3287,18 @@
    632
   ]
  },
+ "birds/chenonetta-jubata.webp": {
+  "box": [
+   0.233,
+   0.096,
+   0.868,
+   0.823
+  ],
+  "cut": [
+   1200,
+   750
+  ]
+ },
  "birds/chlidonias-hybrida.webp": {
   "box": [
    0.03292878866195679,
@@ -4857,6 +4869,18 @@
   "cut": [
    1200,
    797
+  ]
+ },
+ "birds/cygnus-atratus.webp": {
+  "box": [
+   0.092,
+   0.17,
+   0.893,
+   0.813
+  ],
+  "cut": [
+   1200,
+   806
   ]
  },
  "birds/cygnus-columbianus.webp": {
@@ -6993,6 +7017,18 @@
   "cut": [
    1200,
    954
+  ]
+ },
+ "birds/hirundo-neoxena.webp": {
+  "box": [
+   0.046,
+   0.461,
+   0.496,
+   0.708
+  ],
+  "cut": [
+   804,
+   1200
   ]
  },
  "birds/hirundo-rustica-2.webp": {
@@ -9611,6 +9647,18 @@
    1077
   ]
  },
+ "birds/pardalotus-punctatus.webp": {
+  "box": [
+   0.405,
+   0.514,
+   0.809,
+   0.652
+  ],
+  "cut": [
+   681,
+   1200
+  ]
+ },
  "birds/parus-cinereus.webp": {
   "box": [
    0.29107858626568905,
@@ -10809,6 +10857,18 @@
   "cut": [
    1200,
    1123
+  ]
+ },
+ "birds/platycercus-eximius.webp": {
+  "box": [
+   0.261,
+   0.408,
+   0.802,
+   0.992
+  ],
+  "cut": [
+   695,
+   1200
   ]
  },
  "birds/plectrophenax-nivalis-2.webp": {
