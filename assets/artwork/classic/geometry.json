@@ -14807,6 +14807,18 @@
    743
   ]
  },
+ "birds/zonotrichia-albicollis.webp": {
+  "box": [
+   0.003,
+   0.02,
+   0.991,
+   0.845
+  ],
+  "cut": [
+   1200,
+   746
+  ]
+ },
  "birds/zonotrichia-atricapilla.webp": {
   "box": [
    0.013051564693450928,
