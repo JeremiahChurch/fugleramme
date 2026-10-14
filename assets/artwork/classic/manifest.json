@@ -1367,6 +1367,10 @@
     "source": "fuertes",
     "url": "https://commons.wikimedia.org/wiki/File:Annual_report_(1912)_(18431073241).jpg"
   },
+  "birds/contopus-virens.webp": {
+    "source": "audubon",
+    "url": "https://www.audubon.org/art/birds-of-america/wood-pewee"
+  },
   "birds/copsychus-saularis-2.webp": {
     "source": "gould",
     "url": "https://archive.org/details/BirdsAsiaJohnGoIIIGoul/page/n103"
@@ -1915,6 +1919,10 @@
     "source": "martinet",
     "url": "https://commons.wikimedia.org/wiki/File:Eudynamys_horonata_-_1700-1880_-_Print_-_Iconographia_Zoologica_-_Special_Collections_University_of_Amsterdam_-_UBA01_IZ18800311.tif"
   },
+  "birds/euphagus-carolinus.webp": {
+    "source": "audubon",
+    "url": "https://www.audubon.org/art/birds-of-america/rusty-grakle"
+  },
   "birds/euplectes-orix.webp": {
     "source": "hahn",
     "url": "https://commons.wikimedia.org/wiki/File:Ploceus_oryx_-_1700-1880_-_Print_-_Iconographia_Zoologica_-_Special_Collections_University_of_Amsterdam_-_UBA01_IZ15900083.tif"
@@ -2202,6 +2210,10 @@
   "birds/geopelia-humeralis.webp": {
     "source": "gould",
     "url": "https://digital.lib.ku.edu/ku-gould/13608"
+  },
+  "birds/geothlypis-formosa.webp": {
+    "source": "audubon",
+    "url": "https://www.audubon.org/art/birds-of-america/kentucky-warbler"
   },
   "birds/geothlypis-trichas.webp": {
     "source": "audubon",
@@ -4239,6 +4251,10 @@
     "source": "fuertes",
     "url": "https://commons.wikimedia.org/wiki/File:Annual_report_(1912)_(18241716050).jpg"
   },
+  "birds/spizella-pusilla.webp": {
+    "source": "audubon",
+    "url": "https://www.audubon.org/art/birds-of-america/field-sparrow"
+  },
   "birds/spodiopsar-cineraceus.webp": {
     "source": "siebold",
     "url": "https://commons.wikimedia.org/wiki/File:Sturnus_cineraceus_-_1833-1850_-_Print_-_Iconographia_Zoologica_-_Special_Collections_University_of_Amsterdam_-_UBA01_IZ15800089.tif"
@@ -4790,6 +4806,10 @@
   "birds/vidua-macroura.webp": {
     "source": "gordon",
     "url": "https://commons.wikimedia.org/wiki/File:Vidua_macroura_(Dominikanerwida)_en_sprinkhaan,_RP-T-1914-17-282.jpg"
+  },
+  "birds/vireo-griseus.webp": {
+    "source": "audubon",
+    "url": "https://www.audubon.org/art/birds-of-america/white-eyed-flycatcher-or-vireo"
   },
   "birds/xema-sabini.webp": {
     "source": "gould",

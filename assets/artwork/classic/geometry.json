@@ -4103,6 +4103,18 @@
    1174
   ]
  },
+ "birds/contopus-virens.webp": {
+  "box": [
+   0.29,
+   0.26,
+   0.81,
+   0.51
+  ],
+  "cut": [
+   744,
+   1200
+  ]
+ },
  "birds/copsychus-saularis-2.webp": {
   "box": [
    0.2957,
@@ -5747,6 +5759,18 @@
    1200
   ]
  },
+ "birds/euphagus-carolinus.webp": {
+  "box": [
+   0.1,
+   0.11,
+   0.43,
+   0.35
+  ],
+  "cut": [
+   954,
+   1200
+  ]
+ },
  "birds/euplectes-orix.webp": {
   "box": [
    0.02080420242772154,
@@ -6608,6 +6632,18 @@
   ],
   "cut": [
    910,
+   1200
+  ]
+ },
+ "birds/geothlypis-formosa.webp": {
+  "box": [
+   0.25,
+   0.64,
+   0.69,
+   0.8
+  ],
+  "cut": [
+   749,
    1200
   ]
  },
@@ -12719,6 +12755,18 @@
    936
   ]
  },
+ "birds/spizella-pusilla.webp": {
+  "box": [
+   0.38,
+   0.66,
+   0.72,
+   0.83
+  ],
+  "cut": [
+   822,
+   1200
+  ]
+ },
  "birds/spodiopsar-cineraceus.webp": {
   "box": [
    0.07795054200527471,
@@ -14373,6 +14421,18 @@
   "cut": [
    1200,
    549
+  ]
+ },
+ "birds/vireo-griseus.webp": {
+  "box": [
+   0.49,
+   0.56,
+   0.85,
+   0.81
+  ],
+  "cut": [
+   701,
+   1200
   ]
  },
  "birds/xema-sabini.webp": {
