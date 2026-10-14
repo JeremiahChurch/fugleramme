@@ -3403,6 +3403,10 @@
     "source": "gould",
     "url": "https://commons.wikimedia.org/wiki/File:GouldBirdsEuropeIHoney_Buzzard.jpg"
   },
+  "birds/petrochelidon-pyrrhonota.webp": {
+    "source": "sharpe",
+    "url": "https://commons.wikimedia.org/wiki/File:Petrochelidon_pyrrhonota_1894.jpg"
+  },
   "birds/petroica-rosea.webp": {
     "source": "gould",
     "url": "https://www.biodiversitylibrary.org/page/48285795"
@@ -4099,6 +4103,10 @@
     "source": "fuertes",
     "url": "https://www.fws.gov/media/eastern-phoebe"
   },
+  "birds/sayornis-saya.webp": {
+    "source": "audubon",
+    "url": "https://commons.wikimedia.org/wiki/File:Robert_Havell_after_John_James_Audubon,_Arkansaw_Flycatcher,_Swallow-tailed_Flycatcher_and_Says_Flycatcher,_1837,_NGA_32500.jpg"
+  },
   "birds/scolopax-rusticola-2.webp": {
     "source": "vonwright",
     "url": "https://commons.wikimedia.org/wiki/File:Bird_illustration_from_Svenska_F%C3%A5glar_(Swedish_Birds)_by_the_von_Wright_brothers_from_rawpixel%27s_original_edition_of_the_publication_00126.jpg"
@@ -4118,6 +4126,10 @@
   "birds/seiurus-aurocapilla.webp": {
     "source": "audubon",
     "url": "https://www.audubon.org/art/birds-of-america/golden-crowned-thrush"
+  },
+  "birds/selasphorus-platycercus.webp": {
+    "source": "swainson",
+    "url": "https://commons.wikimedia.org/wiki/File:Selasphorus_platycercus_1841.jpg"
   },
   "birds/selasphorus-rufus.webp": {
     "source": "audubon",
@@ -4710,6 +4722,10 @@
   "birds/tringa-totanus.webp": {
     "source": "gould",
     "url": "https://commons.wikimedia.org/wiki/File:GouldBirdsEuropeIVRedshank.jpg"
+  },
+  "birds/troglodytes-aedon.webp": {
+    "source": "swainson",
+    "url": "https://commons.wikimedia.org/wiki/File:Troglodytes_aedon_musculus_1841.jpg"
   },
   "birds/troglodytes-pacificus.webp": {
     "source": "keulemans",
