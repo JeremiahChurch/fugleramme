@@ -5759,16 +5759,40 @@
    1200
   ]
  },
- "birds/euphagus-carolinus.webp": {
+ "birds/euphagus-carolinus-2.webp": {
   "box": [
-   0.099,
-   0.107,
-   0.434,
-   0.371
+   0.0,
+   0.22,
+   0.99,
+   0.92
   ],
   "cut": [
-   954,
+   1200,
+   1196
+  ]
+ },
+ "birds/euphagus-carolinus-3.webp": {
+  "box": [
+   0.0,
+   0.0,
+   0.99,
+   0.88
+  ],
+  "cut": [
+   1154,
    1200
+  ]
+ },
+ "birds/euphagus-carolinus.webp": {
+  "box": [
+   0.0,
+   0.18,
+   1.0,
+   0.95
+  ],
+  "cut": [
+   1200,
+   785
   ]
  },
  "birds/euplectes-orix.webp": {
@@ -6635,15 +6659,27 @@
    1200
   ]
  },
- "birds/geothlypis-formosa.webp": {
+ "birds/geothlypis-formosa-2.webp": {
   "box": [
-   0.251,
-   0.641,
-   0.713,
-   0.821
+   0.0,
+   0.0,
+   0.92,
+   1.0
   ],
   "cut": [
-   749,
+   1200,
+   825
+  ]
+ },
+ "birds/geothlypis-formosa.webp": {
+  "box": [
+   0.244,
+   0.642,
+   0.72,
+   0.819
+  ],
+  "cut": [
+   727,
    1200
   ]
  },

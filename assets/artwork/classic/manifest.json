@@ -1919,6 +1919,14 @@
     "source": "martinet",
     "url": "https://commons.wikimedia.org/wiki/File:Eudynamys_horonata_-_1700-1880_-_Print_-_Iconographia_Zoologica_-_Special_Collections_University_of_Amsterdam_-_UBA01_IZ18800311.tif"
   },
+  "birds/euphagus-carolinus-2.webp": {
+    "source": "audubon",
+    "url": "https://www.audubon.org/art/birds-of-america/rusty-grakle"
+  },
+  "birds/euphagus-carolinus-3.webp": {
+    "source": "audubon",
+    "url": "https://www.audubon.org/art/birds-of-america/rusty-grakle"
+  },
   "birds/euphagus-carolinus.webp": {
     "source": "audubon",
     "url": "https://www.audubon.org/art/birds-of-america/rusty-grakle"
@@ -2210,6 +2218,10 @@
   "birds/geopelia-humeralis.webp": {
     "source": "gould",
     "url": "https://digital.lib.ku.edu/ku-gould/13608"
+  },
+  "birds/geothlypis-formosa-2.webp": {
+    "source": "audubon",
+    "url": "https://www.audubon.org/art/birds-of-america/kentucky-warbler"
   },
   "birds/geothlypis-formosa.webp": {
     "source": "audubon",
