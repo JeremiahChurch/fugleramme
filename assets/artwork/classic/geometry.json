@@ -6913,14 +6913,14 @@
  },
  "birds/helmitheros-vermivorum.webp": {
   "box": [
-   0.02,
-   0.59,
-   0.39,
-   0.84
+   0.01,
+   0.3,
+   0.4,
+   0.73
   ],
   "cut": [
-   775,
-   1200
+   1200,
+   1107
   ]
  },
  "birds/helopsaltes-certhiola.webp": {
@@ -12215,15 +12215,39 @@
    1200
   ]
  },
- "birds/setophaga-citrina.webp": {
+ "birds/setophaga-citrina-2.webp": {
   "box": [
-   0.5,
-   0.365,
-   0.97,
-   0.545
+   0.3,
+   0.53,
+   0.7,
+   0.79
   ],
   "cut": [
-   813,
+   704,
+   1200
+  ]
+ },
+ "birds/setophaga-citrina-3.webp": {
+  "box": [
+   0.0,
+   0.28,
+   1.0,
+   0.74
+  ],
+  "cut": [
+   1200,
+   1075
+  ]
+ },
+ "birds/setophaga-citrina.webp": {
+  "box": [
+   0.0,
+   0.3,
+   0.93,
+   0.75
+  ],
+  "cut": [
+   951,
    1200
   ]
  },
