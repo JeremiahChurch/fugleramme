@@ -2351,6 +2351,18 @@
    1024
   ]
  },
+ "birds/buteo-platypterus.webp": {
+  "box": [
+   0.609,
+   0.275,
+   0.924,
+   0.628
+  ],
+  "cut": [
+   818,
+   1200
+  ]
+ },
  "birds/buteo-regalis.webp": {
   "box": [
    0.0451,
@@ -6899,6 +6911,18 @@
    1200
   ]
  },
+ "birds/helmitheros-vermivorum.webp": {
+  "box": [
+   0.01,
+   0.3,
+   0.4,
+   0.73
+  ],
+  "cut": [
+   1200,
+   1107
+  ]
+ },
  "birds/helopsaltes-certhiola.webp": {
   "box": [
    0.125753809658185,
@@ -8457,6 +8481,18 @@
   "cut": [
    1200,
    930
+  ]
+ },
+ "birds/melanerpes-erythrocephalus.webp": {
+  "box": [
+   0.09,
+   0.55,
+   0.391,
+   0.91
+  ],
+  "cut": [
+   1027,
+   1200
   ]
  },
  "birds/melanitta-fusca-2.webp": {
@@ -12179,6 +12215,42 @@
    1200
   ]
  },
+ "birds/setophaga-citrina-2.webp": {
+  "box": [
+   0.3,
+   0.53,
+   0.7,
+   0.79
+  ],
+  "cut": [
+   704,
+   1200
+  ]
+ },
+ "birds/setophaga-citrina-3.webp": {
+  "box": [
+   0.0,
+   0.28,
+   1.0,
+   0.74
+  ],
+  "cut": [
+   1200,
+   1075
+  ]
+ },
+ "birds/setophaga-citrina.webp": {
+  "box": [
+   0.0,
+   0.3,
+   0.93,
+   0.75
+  ],
+  "cut": [
+   951,
+   1200
+  ]
+ },
  "birds/setophaga-coronata-2.webp": {
   "box": [
    0.001,
@@ -14373,6 +14445,18 @@
   "cut": [
    1200,
    549
+  ]
+ },
+ "birds/vireo-solitarius.webp": {
+  "box": [
+   0.2,
+   0.395,
+   0.655,
+   0.578
+  ],
+  "cut": [
+   870,
+   1200
   ]
  },
  "birds/xema-sabini.webp": {
