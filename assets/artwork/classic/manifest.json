@@ -783,6 +783,10 @@
     "source": "audubon",
     "url": "https://media.audubon.org/boa_illustration/plate-56-red-shouldered-hawk.jpg"
   },
+  "birds/buteo-platypterus.webp": {
+    "source": "audubon",
+    "url": "https://www.audubon.org/art/birds-of-america/broad-winged-hawk"
+  },
   "birds/buteo-regalis.webp": {
     "source": "cassin",
     "url": "https://commons.wikimedia.org/wiki/File:Illustrations_of_the_birds_of_California,_Texas,_Oregon,_British_and_Russian_America_(Plate_26)_(6306536158).jpg"
@@ -2299,6 +2303,10 @@
     "source": "gould",
     "url": "https://commons.wikimedia.org/wiki/File:GouldBirdsEuropeIWhite-headed_Eagle.jpg"
   },
+  "birds/helmitheros-vermivorum.webp": {
+    "source": "audubon",
+    "url": "https://www.audubon.org/art/birds-of-america/worm-eating-warbler"
+  },
   "birds/helopsaltes-certhiola.webp": {
     "source": "gould",
     "url": "https://commons.wikimedia.org/wiki/File:GouldBirdsEuropeIICreeping_Locustelle.jpg"
@@ -2818,6 +2826,10 @@
   "birds/melanerpes-carolinus.webp": {
     "source": "audubon",
     "url": "https://media.audubon.org/boa_illustration/plate-416-hairy-woodpecker.jpg"
+  },
+  "birds/melanerpes-erythrocephalus.webp": {
+    "source": "audubon",
+    "url": "https://www.audubon.org/art/birds-of-america/red-headed-woodpecker"
   },
   "birds/melanitta-fusca-2.webp": {
     "source": "vonwright",
@@ -4059,6 +4071,10 @@
     "source": "gould",
     "url": "https://commons.wikimedia.org/wiki/File:GouldBirdsEuropeIIISerin_Finch.jpg"
   },
+  "birds/setophaga-citrina.webp": {
+    "source": "audubon",
+    "url": "https://www.audubon.org/art/birds-of-america/hooded-warbler"
+  },
   "birds/setophaga-coronata-2.webp": {
     "source": "audubon",
     "url": "https://www.audubon.org/art/birds-of-america/yellow-crown-warbler"
@@ -4790,6 +4806,10 @@
   "birds/vidua-macroura.webp": {
     "source": "gordon",
     "url": "https://commons.wikimedia.org/wiki/File:Vidua_macroura_(Dominikanerwida)_en_sprinkhaan,_RP-T-1914-17-282.jpg"
+  },
+  "birds/vireo-solitarius.webp": {
+    "source": "audubon",
+    "url": "https://www.audubon.org/art/birds-of-america/vireo-solitarius"
   },
   "birds/xema-sabini.webp": {
     "source": "gould",
