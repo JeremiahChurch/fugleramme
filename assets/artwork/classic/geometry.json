@@ -5759,42 +5759,6 @@
    1200
   ]
  },
- "birds/euphagus-carolinus-2.webp": {
-  "box": [
-   0.0,
-   0.22,
-   0.99,
-   0.92
-  ],
-  "cut": [
-   1200,
-   1196
-  ]
- },
- "birds/euphagus-carolinus-3.webp": {
-  "box": [
-   0.0,
-   0.0,
-   0.99,
-   0.88
-  ],
-  "cut": [
-   1154,
-   1200
-  ]
- },
- "birds/euphagus-carolinus.webp": {
-  "box": [
-   0.0,
-   0.18,
-   1.0,
-   0.95
-  ],
-  "cut": [
-   1200,
-   785
-  ]
- },
  "birds/euplectes-orix.webp": {
   "box": [
    0.02080420242772154,
@@ -12789,18 +12753,6 @@
   "cut": [
    1091,
    936
-  ]
- },
- "birds/spizella-pusilla.webp": {
-  "box": [
-   0.37,
-   0.667,
-   0.724,
-   0.852
-  ],
-  "cut": [
-   822,
-   1200
   ]
  },
  "birds/spodiopsar-cineraceus.webp": {
