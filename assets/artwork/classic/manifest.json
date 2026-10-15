@@ -975,6 +975,10 @@
     "source": "gould",
     "url": "https://digital.lib.ku.edu/ku-gould/13868"
   },
+  "birds/calyptorhynchus-lathami.webp": {
+    "source": "gould",
+    "url": "https://commons.wikimedia.org/wiki/File:Bird_illustration_by_Elizabeth_Gould_for_Birds_of_Australia,_digitally_enhanced_from_rawpixel%27s_own_facsimile_book351.jpg"
+  },
   "birds/canachites-canadensis.webp": {
     "source": "fuertes",
     "url": "https://commons.wikimedia.org/wiki/Category:Birds_of_New_York_(Eaton)#/media/File:Annual_report_(1909)_(14776306752).jpg"
@@ -2327,6 +2331,10 @@
     "source": "audubon",
     "url": "https://media.audubon.org/boa_illustration/plate-424-lazuli-finch.jpg"
   },
+  "birds/haemorhous-purpureus.webp": {
+    "source": "audubon",
+    "url": "https://www.audubon.org/art/birds-of-america/purple-finch"
+  },
   "birds/haliaeetus-albicilla-2.webp": {
     "source": "vonwright",
     "url": "https://commons.wikimedia.org/wiki/File:Bird_illustration_from_Svenska_F%C3%A5glar_(Swedish_Birds)_by_the_von_Wright_brothers_from_rawpixel%27s_original_edition_of_the_publication_00301.jpg"
@@ -3002,6 +3010,10 @@
   "birds/molothrus-ater.webp": {
     "source": "fuertes",
     "url": "https://commons.wikimedia.org/wiki/File:Annual_report_(1912)_(18243212489).jpg"
+  },
+  "birds/monarcha-melanopsis.webp": {
+    "source": "swainson",
+    "url": "https://commons.wikimedia.org/wiki/File:Zoological_Illustrations_Volume_III_Plate_147.jpg"
   },
   "birds/monticola-saxatilis-2.webp": {
     "source": "naumann",
@@ -4131,6 +4143,10 @@
     "source": "audubon",
     "url": "https://www.audubon.org/art/birds-of-america/golden-crowned-thrush"
   },
+  "birds/selasphorus-platycercus-2.webp": {
+    "source": "swainson",
+    "url": "https://commons.wikimedia.org/wiki/File:Selasphorus_platycercus_1841.jpg"
+  },
   "birds/selasphorus-platycercus.webp": {
     "source": "swainson",
     "url": "https://commons.wikimedia.org/wiki/File:Selasphorus_platycercus_1841.jpg"
@@ -4287,6 +4303,10 @@
     "source": "gould",
     "url": "https://digital.lib.ku.edu/ku-gould/14270"
   },
+  "birds/sphyrapicus-varius-2.webp": {
+    "source": "audubon",
+    "url": "https://media.audubon.org/boa_illustration/plate-190-yellow-bellied-woodpecker.jpg"
+  },
   "birds/sphyrapicus-varius.webp": {
     "source": "fuertes",
     "url": "https://commons.wikimedia.org/wiki/File:Annual_report_(1912)_(18429319635).jpg"
@@ -4406,6 +4426,10 @@
   "birds/sternula-albifrons.webp": {
     "source": "gould",
     "url": "https://commons.wikimedia.org/wiki/File:GouldBirdsEuropeVLittle_Tern.jpg"
+  },
+  "birds/strepera-graculina.webp": {
+    "source": "gould",
+    "url": "https://commons.wikimedia.org/wiki/File:Bird_illustration_by_Elizabeth_Gould_for_Birds_of_Australia,_digitally_enhanced_from_rawpixel%27s_own_facsimile_book78.jpg"
   },
   "birds/streptopelia-decaocto.webp": {
     "source": "keulemans",
