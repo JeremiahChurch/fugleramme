@@ -45,7 +45,7 @@ class Panel:
         if image.size != self.resolution:
             raise ValueError(f"image is {image.size}, panel is {self.resolution}")
         self._device.set_image(image)
-        self._device.show()  # blocks ~35s on the 13.3" while the panel refreshes
+        self._device.show()  # blocks ~20s on the 13.3" while the panel refreshes
 
 
 def resolution_of(panel: Panel | None) -> tuple[int, int]:

@@ -30,7 +30,7 @@ fugleramme-check = "fugleramme.check:main"
 # boards: 2.1 added the 13.3" and 2.2 fixed its palette handling. gpiod is
 # inky's own dependency, but the buttons are ours to read - it has no API for them.
 panel = [
-    "inky>=2.2",
+    "inky>=2.6",
     "gpiod>=2.1",
     "gpiodevice>=0.0.5",
 ]
