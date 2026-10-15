@@ -2,6 +2,128 @@
 
 <!-- version list -->
 
+## v0.28.1 (2026-10-15)
+
+### Bug Fixes
+
+- #258 clarify fugleramme-check examples
+  ([`ac5e51b`](https://github.com/arnegiacomo/fugleramme/commit/ac5e51b11010669262a355087125640ad4d931ba))
+
+- #258 tidy cli help
+  ([`c109e87`](https://github.com/arnegiacomo/fugleramme/commit/c109e871d91cf8d7a2f70f22f8d39e16f12c0bda))
+
+- #258 tolerate slow detectors
+  ([`692f699`](https://github.com/arnegiacomo/fugleramme/commit/692f6999189a46d735ca316bf890756a6276604f))
+
+- Ship geometry.json in the image so bird boxes size the collage
+  ([#274](https://github.com/arnegiacomo/fugleramme/pull/274),
+  [`33b943b`](https://github.com/arnegiacomo/fugleramme/commit/33b943b41222b980f7bde913f3453028ea401fe7))
+
+- Stop a new bird with no artwork from repainting the page
+  ([`6a5c4c0`](https://github.com/arnegiacomo/fugleramme/commit/6a5c4c0275cbf35cf77a269e73920aaf3a571d1e))
+
+### Chores
+
+- #258 fix flaky cache tests
+  ([`28752f8`](https://github.com/arnegiacomo/fugleramme/commit/28752f81ae9be8138cedef6012c8bd5e723d32ef))
+
+- Support https from XIAO EE02 ([#259](https://github.com/arnegiacomo/fugleramme/pull/259),
+  [`e928bba`](https://github.com/arnegiacomo/fugleramme/commit/e928bba6c005161a7f2f561dcd910671285761d7))
+
+- **assets**: #226 replace the generative perches with nine new cuts
+  ([`a5e4708`](https://github.com/arnegiacomo/fugleramme/commit/a5e4708bc396235088a60cd2f34481deae69c45c))
+
+- **assets**: #236 add 3 south-east Queensland birds
+  ([`973b8b2`](https://github.com/arnegiacomo/fugleramme/commit/973b8b2b26f6a2e3a30f59ba79af8e1b17e858ca))
+
+- **assets**: #236 recut the currawong's tail and the cockatoo's raised tail
+  ([`93593ac`](https://github.com/arnegiacomo/fugleramme/commit/93593acfad325238935ea052f7bbfcddf7462fa3))
+
+- **assets**: #33 add 4 western North American birds
+  ([#265](https://github.com/arnegiacomo/fugleramme/pull/265),
+  [`f2347f5`](https://github.com/arnegiacomo/fugleramme/commit/f2347f56b5fb02c9e8ca770b9bbf5e4224164e8e))
+
+- **assets**: #33 add 5 south-eastern North American birds
+  ([#271](https://github.com/arnegiacomo/fugleramme/pull/271),
+  [`551bbad`](https://github.com/arnegiacomo/fugleramme/commit/551bbad048e8b644a733db120f0f9c6578da50ba))
+
+- **assets**: #33 add an Audubon yellow-bellied sapsucker
+  ([#275](https://github.com/arnegiacomo/fugleramme/pull/275),
+  [`220610f`](https://github.com/arnegiacomo/fugleramme/commit/220610fa6ceb174fd431a792f8b01a6a03f5b233))
+
+- **assets**: #33 add Baeolophus bicolor variant
+  ([#212](https://github.com/arnegiacomo/fugleramme/pull/212),
+  [`e8a2cc6`](https://github.com/arnegiacomo/fugleramme/commit/e8a2cc683db8e8b4c4bf6acd8048da36771b0cab))
+
+- **assets**: #33 add Catharus ustulatus
+  ([#260](https://github.com/arnegiacomo/fugleramme/pull/260),
+  [`3190f35`](https://github.com/arnegiacomo/fugleramme/commit/3190f35d10a3b2b41030e011847b5ad7ae573a89))
+
+- **assets**: #33 add Geothlypis trichas
+  ([#264](https://github.com/arnegiacomo/fugleramme/pull/264),
+  [`e13acdc`](https://github.com/arnegiacomo/fugleramme/commit/e13acdcd9d49de51e197190e3ea57f16a056c609))
+
+- **assets**: #33 add Haemorhous purpureus
+  ([#269](https://github.com/arnegiacomo/fugleramme/pull/269),
+  [`ca967a0`](https://github.com/arnegiacomo/fugleramme/commit/ca967a0f6d064e2fa489de5d212a8676329c7c66))
+
+- **assets**: #33 add sayornis-phoebe ([#256](https://github.com/arnegiacomo/fugleramme/pull/256),
+  [`83a7f36`](https://github.com/arnegiacomo/fugleramme/commit/83a7f363ce47b4b69b9df763c414df70b0ad5959))
+
+- **assets**: #33 add Troglodytes pacificus and Passerella iliaca
+  ([#257](https://github.com/arnegiacomo/fugleramme/pull/257),
+  [`53a45ef`](https://github.com/arnegiacomo/fugleramme/commit/53a45ef3d6abe696604caef918223dfff6030e12))
+
+- **assets**: #33 add yellow-bellied sapsucker and scarlet tanager
+  ([#255](https://github.com/arnegiacomo/fugleramme/pull/255),
+  [`e6a51e5`](https://github.com/arnegiacomo/fugleramme/commit/e6a51e5f2be21029a1ba2e84a8fac058b7021b59))
+
+- **assets**: #33 add Zonotrichia albicollis
+  ([#267](https://github.com/arnegiacomo/fugleramme/pull/267),
+  [`0694c9f`](https://github.com/arnegiacomo/fugleramme/commit/0694c9fd9fc4b9be0cd824f0a3467f01c5d6815d))
+
+- **assets**: Add 4 China birds
+  ([`3ba31b1`](https://github.com/arnegiacomo/fugleramme/commit/3ba31b1a0fac40b1fc2a812965cd44e20dcdb91a))
+
+- **assets**: Add five Australian birds ([#261](https://github.com/arnegiacomo/fugleramme/pull/261),
+  [`633de51`](https://github.com/arnegiacomo/fugleramme/commit/633de51e0089467f0f7b5606a5e58224520c70c0))
+
+- **assets**: Add south African birds ([#254](https://github.com/arnegiacomo/fugleramme/pull/254),
+  [`6fa0b7b`](https://github.com/arnegiacomo/fugleramme/commit/6fa0b7bf60106cef5b927ea3d54e34dec50280b7))
+
+- **assets**: Recut 6 classic plates with even halos
+  ([`0ddc995`](https://github.com/arnegiacomo/fugleramme/commit/0ddc995d03e39030145284809812af9efa216143))
+
+- **assets**: Recut 8 classic plates from better scans
+  ([`6887775`](https://github.com/arnegiacomo/fugleramme/commit/6887775fd0c7d5fcdf748b2966992df3ce6ce183))
+
+### Documentation
+
+- #226 allow generative image models only for small masked repairs
+  ([`1be63e5`](https://github.com/arnegiacomo/fugleramme/commit/1be63e51532529ea1c72e30a7441ca5ae62711d3))
+
+- Add a languages page
+  ([`43fbf20`](https://github.com/arnegiacomo/fugleramme/commit/43fbf207cb7e45c9d0db9a5338397c5ee4f70631))
+
+- Add a mounting page with the 7.3" frame and printed parts
+  ([`463de41`](https://github.com/arnegiacomo/fugleramme/commit/463de414428ed983fcbff12dd6947d64819f66aa))
+
+- Link to 'Backyard Birds'
+  ([`6ede4a5`](https://github.com/arnegiacomo/fugleramme/commit/6ede4a5b6c4130d33b91f9b2ee4b53232133daf3))
+
+- Point the readme showcase link at the docs site
+  ([`725319a`](https://github.com/arnegiacomo/fugleramme/commit/725319a52294c6aefac4c7b9c85429972bac08f0))
+
+- Point the watchtower link at the maintained fork
+  ([`f81e7ae`](https://github.com/arnegiacomo/fugleramme/commit/f81e7ae6b0be8225567c45af1594fe54ec4a3638))
+
+- Refresh the readme with new photos and a redraw gif
+  ([`558f1b1`](https://github.com/arnegiacomo/fugleramme/commit/558f1b16a96535c63449d5541373866937efe5fb))
+
+- Tidy the docs home page and fix stale bits
+  ([`73f0324`](https://github.com/arnegiacomo/fugleramme/commit/73f032432a954dbaeeca6596ff93bd04e4f7bc21))
+
+
 ## v0.28.0 (2026-10-08)
 
 ### Bug Fixes
