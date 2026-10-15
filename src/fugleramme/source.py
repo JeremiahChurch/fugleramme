@@ -56,6 +56,10 @@ class Source(Protocol):
         every species ever heard."""
         ...
 
+    def last_heard(self, hours: float = 24) -> list[str]:
+        """Species heard in the last `hours`, most recently heard first then by name."""
+        ...
+
     def life_list(self) -> list[Species]:
         """Every species ever recorded with the date it was first heard, earliest first."""
         ...

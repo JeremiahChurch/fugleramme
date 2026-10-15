@@ -76,10 +76,12 @@ KEY_LIMIT = 40  # a key of more names than this no longer fits beside the birds
 RANK_MOST_HEARD = "heard"
 RANK_RAREST = "rarest"
 RANK_RAREST_EVER = "rarest_ever"
+RANK_LAST_HEARD = "last_heard"
 RANKINGS = {
     RANK_MOST_HEARD: "The most heard",
     RANK_RAREST: "The rarest in the window",
     RANK_RAREST_EVER: "The rarest all time",
+    RANK_LAST_HEARD: "The latest heard",
 }
 DEFAULT_RANKING = RANK_MOST_HEARD
 _ALPHA_CUTOFF = 24
@@ -756,7 +758,7 @@ def _rank(ranking: str):
     a page at its limit does not flicker between two equally-heard birds."""
     if ranking == RANK_MOST_HEARD:
         return lambda pair: (-pair[1], pair[0])
-    return lambda pair: (pair[1], pair[0])  # both rarest rankings
+    return lambda pair: (pair[1], pair[0])  # both rarest, and last heard
 
 
 def _by_species(counts: Iterable[tuple[str, int]]) -> dict[str, int]:
@@ -801,6 +803,9 @@ def selected_species(
         # A resident heard twice today is not a rarity; a first-timer is.
         ever = _by_species(source.species_since(0))  # 0 hours: the whole record
         counted = [(name, ever.get(name, n)) for name, n in counted]
+    if ranking == RANK_LAST_HEARD:
+        place = {name: i for i, name in enumerate(source.last_heard(hours))}
+        counted = [(name, place.get(name, len(place))) for name, _n in counted]
     lead = canonical(spotlight) if spotlight else None
     first = [name for name, _n in counted if name == lead]
     rest = [pair for pair in counted if pair[0] != lead]

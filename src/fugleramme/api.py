@@ -411,6 +411,14 @@ class ApiSource:
             if _heard_since(row, since)
         )
 
+    def last_heard(self, hours: float = 24) -> list[str]:
+        since = datetime.now(UTC) - timedelta(hours=hours) if hours > 0 else None
+        rows = [row for row in self._summary(*_window(hours)) if _heard_since(row, since)]
+        newest = sorted(
+            rows, key=lambda row: (-_at(row.get("last_heard")).timestamp(), row["scientific_name"])
+        )
+        return [row["scientific_name"] for row in newest]
+
     def life_list(self) -> list[Species]:
         try:
             species = [
@@ -478,6 +486,9 @@ class Configured:
 
     def species_since(self, hours: float = 24) -> list[tuple[str, int]]:
         return self.source.species_since(hours)
+
+    def last_heard(self, hours: float = 24) -> list[str]:
+        return self.source.last_heard(hours)
 
     def life_list(self) -> list[Species]:
         return self.source.life_list()

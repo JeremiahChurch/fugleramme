@@ -209,6 +209,21 @@ def test_a_day_window_drops_a_bird_heard_before_the_cutoff(detector):
     assert ApiSource(url).species_since(0) == [(TIT, 1), (BLACKBIRD, 1)]  # all time keeps it
 
 
+def test_last_heard_orders_the_window_by_its_latest_call(detector):
+    now = datetime.now().astimezone()
+    stale = datetime.combine(now.date() - timedelta(days=1), time(), now.tzinfo)
+    url, _httpd = detector(
+        rows=[
+            _row(4, now - timedelta(minutes=5), TIT),
+            _row(3, now - timedelta(minutes=30), BLACKBIRD),
+            _row(2, now - timedelta(minutes=40), BLACKBIRD),
+            _row(1, stale, "Erithacus rubecula"),
+        ]
+    )
+
+    assert ApiSource(url).last_heard(24) == [TIT, BLACKBIRD]
+
+
 def test_a_summary_stamped_without_an_offset_is_read_in_the_frames_zone(
     detector, monkeypatch, caplog
 ):
