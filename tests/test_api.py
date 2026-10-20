@@ -59,6 +59,19 @@ def test_a_detector_that_is_not_there_raises(detector):
             call()
 
 
+@pytest.mark.parametrize("route", [_SUMMARY, "/detections/recent"])
+@pytest.mark.parametrize(
+    "body", [{"data": []}, [None], [{"scientific_name": None, "scientificName": None}]]
+)
+def test_a_detector_answering_in_an_unknown_shape_raises(monkeypatch, route, body):
+    """An error body or a null row, read as birds, would surface as a render
+    error rather than as a detector that is not answering."""
+    detections = ApiSource("http://detector.invalid")
+    monkeypatch.setattr(detections, "_get", lambda path, **_: body if path == route else [])
+    with pytest.raises(Unavailable):
+        detections.species_since(0) if route == _SUMMARY else detections.latest()
+
+
 def test_a_detector_with_no_birds_reads_as_empty(source):
     quiet = source(count=0)
     assert quiet.species_since(24) == []
@@ -147,6 +160,18 @@ def test_a_slow_answer_is_held_for_longer(detector, monkeypatch):
     now[0] += 20
     monkeypatch.setattr(detections, "_get", get)
     assert detections.species_since(0) == first
+
+
+def test_an_answer_past_its_time_is_forgotten(monkeypatch):
+    """A window's dates move on daily, so a frame left running for months would
+    otherwise keep every day's summary."""
+    now = [0.0]
+    monkeypatch.setattr(api, "time", SimpleNamespace(monotonic=lambda: now[0]))
+    detections = ApiSource("http://detector.invalid")
+    detections._cached(("summary", "2026-10-18", "2026-10-19"), list)
+    now[0] += 3600
+    detections._cached(("summary", "2026-10-19", "2026-10-20"), list)
+    assert list(detections._cache) == [("summary", "2026-10-19", "2026-10-20")]
 
 
 def test_a_station_slow_to_answer_is_not_called_unreachable():
