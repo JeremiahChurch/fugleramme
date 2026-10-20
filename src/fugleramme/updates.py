@@ -115,6 +115,11 @@ def apply(tag: str, progress: Progress | None = None) -> None:
         "Downloading",
         progress,
     )
+    # A checkout cut short by power loss or the stall guard leaves this behind, and git
+    # refuses every checkout after it. Nothing else runs git here, so it is stale.
+    lock = REPO_ROOT / ".git" / "index.lock"
+    if lock.is_file():
+        lock.unlink()
     # --force: `uv sync` rewrites uv.lock in place, and a plain checkout refuses to
     # run against that. Only tracked files are discarded; data/ and config are ignored.
     _run(["git", "checkout", "--progress", "--force", "--detach", tag], "Checking out", progress)
