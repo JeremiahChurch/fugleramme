@@ -17,7 +17,7 @@ from urllib.parse import urlencode, urlparse
 
 from PIL.ImageFont import FreeTypeFont
 
-from .. import __version__, modes, updates
+from .. import __version__, birdweather, modes, updates
 from ..api import probe
 from ..config import (
     BIRDNET_PORT,
@@ -564,9 +564,10 @@ def _shown(field: str, kind: str, shown: bool) -> str:
 
 
 def _stations_field(settings: Settings, shown: bool) -> str:
-    """BirdWeather's stations, a row each with an × to remove it, and a button
-    adding one up to `MOST_STATIONS` (admin.js). With none saved, one empty row.
-    Text inputs, since a bare ID is no URL."""
+    """BirdWeather's stations, a row each with an × to remove it, a button
+    adding one up to `MOST_STATIONS`, and a dialog listing the stations nearest
+    a place (admin.js). With none saved, one empty row. Text inputs, since a
+    bare ID is no URL. The search posts nothing: its field has no name."""
     off = "" if shown else " disabled"
     rows = "".join(
         f'<div class="station"><input type="text" name="detector_station"'
@@ -576,8 +577,15 @@ def _stations_field(settings: Settings, shown: bool) -> str:
     )
     return (
         f'<div class="field stations" data-kind="{BIRDWEATHER}" data-most="{MOST_STATIONS}"'
-        f"{'' if shown else ' hidden'}><span>Stations <small>(ID or page)</small></span>"
-        f'{rows}<button type="button" class="add">+ Add station</button></div>'
+        f"{'' if shown else ' hidden'}><span>Stations <small>(ID or address)</small></span>"
+        f'{rows}<button type="button" class="add">+ Add station</button>'
+        '<button type="button" class="find">Find stations…</button>'
+        '<dialog class="near"><header><strong>Find stations</strong>'
+        '<button type="button" class="close" aria-label="Close">×</button></header>'
+        '<input type="search" placeholder="Type a place" aria-label="Place" autofocus>'
+        '<ul class="places"></ul><p class="note"></p><ul class="found"></ul>'
+        f'<a href="{BIRDWEATHER_SITE}" target="_blank" rel="noopener">'
+        "Browse BirdWeather's map ↗</a></dialog></div>"
     )
 
 
@@ -765,6 +773,17 @@ def connection(form: dict[str, list[str]], settings: Settings) -> dict:
         "text": " · ".join(part for part in (lead, detail) if part),
         "status": row,
     }
+
+
+def stations_near(lat: float, lon: float) -> dict:
+    """The station search's answer for a place: the nearest stations, or why
+    there are none."""
+    try:
+        found = birdweather.nearest(lat, lon)
+    except Unavailable as error:
+        return {"stations": [], "text": str(error)}
+    text = "" if found else f"No active stations within {birdweather.RADII_KM[-1]} km."
+    return {"stations": [station._asdict() for station in found], "text": text}
 
 
 def _lookbacks(settings: Settings) -> str:

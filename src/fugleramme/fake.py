@@ -143,13 +143,14 @@ _OLDEST = timedelta(days=90)
 _CLIP_SECONDS = 3
 _FALSE_POSITIVE_RATE = 0.15
 
-# The fake BirdWeather's stations, (name, timezone) by ID; any other answers 404,
-# as upstream does. A detection is heard at the first unless it says otherwise.
+# The fake BirdWeather's stations, (name, timezone, lat, lon) by ID; any other
+# answers 404, as upstream does. A detection is heard at the first unless it
+# says otherwise.
 STATION_ID, OTHER_STATION_ID = "1", "2"
 STATION_NAME, STATION_ZONE = "Fake station", "Europe/Oslo"
 STATIONS = {
-    STATION_ID: (STATION_NAME, STATION_ZONE),
-    OTHER_STATION_ID: ("Other fake station", "Europe/London"),
+    STATION_ID: (STATION_NAME, STATION_ZONE, 59.91, 10.75),
+    OTHER_STATION_ID: ("Other fake station", "Europe/London", 51.51, -0.13),
 }
 
 
@@ -528,7 +529,7 @@ _NOT_FOUND = (
 # The fields the fake answers, each with its arguments. Only variables are read
 # (`first: $first`), never literals: the frame passes everything as one.
 _FIELD = re.compile(
-    r"(?:(\w+)\s*:\s*)?\b(detections|topSpecies|dailyDetectionCounts|allSpecies)\s*\(([^)]*)\)"
+    r"(?:(\w+)\s*:\s*)?\b(detections|topSpecies|dailyDetectionCounts|allSpecies|stations)\s*\(([^)]*)\)"
 )
 _ARG = re.compile(r"(\w+)\s*:\s*\$(\w+)")
 _STATION_ARG = re.compile(r"\bstation\s*\(\s*id\s*:\s*\$(\w+)\s*\)")
@@ -653,11 +654,23 @@ def _all_species(_rows: list[Detection], args: dict[str, Any]) -> dict[str, Any]
     return {"pageInfo": {"hasNextPage": False}, "nodes": nodes}
 
 
+def _stations(_rows: list[Detection], _args: dict[str, Any]) -> dict[str, Any]:
+    """Every station whatever the box, as loose as upstream's gets: the frame
+    cuts the circle itself."""
+    return {
+        "nodes": [
+            {"id": id_, "name": name, "coords": {"lat": lat, "lon": lon}}
+            for id_, (name, _zone, lat, lon) in STATIONS.items()
+        ]
+    }
+
+
 _ANSWERS = {
     "detections": _bw_detections,
     "topSpecies": _top_species,
     "dailyDetectionCounts": _daily,
     "allSpecies": _all_species,
+    "stations": _stations,
 }
 
 

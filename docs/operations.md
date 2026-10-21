@@ -105,6 +105,8 @@ Want to try it first? Use mine: `31086`.
 You can add up to five stations with **+ Add station**. Their birds show on one page together.
 If a station goes missing, the rest still show and the Detector tab marks it red.
 
+Don't know a station? Press **Find stations…**, type a place and **Add** the nearest ones.
+
 Only public stations work. The names come in the languages BirdWeather has, see
 [Languages](languages.md).
 

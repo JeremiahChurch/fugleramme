@@ -371,3 +371,32 @@ def test_the_fake_translates_as_birdweather_does(detector):
     assert nodes[BLACKBIRD]["commonName"] == "Eurasian Blackbird" and "en" not in blackbird
     assert blackbird["no"] == "Svarttrost"
     assert "zh-SM" not in {t["locale"] for t in nodes[BAT]["translations"]}
+
+
+def test_the_search_lists_only_the_stations_inside_its_circle(detector, monkeypatch):
+    """BirdWeather's box is loose, so it can answer a station well outside it."""
+    url, _httpd = detector(birdweather=True)
+    monkeypatch.setattr(birdweather, "BIRDWEATHER_SITE", url)
+    name, _zone, lat, lon = fake.STATIONS[fake.STATION_ID]
+    [found] = birdweather.nearest(lat + 0.1, lon)
+    assert (found.id, found.name, round(found.km)) == (fake.STATION_ID, name, 11)
+    assert birdweather.nearest(0, 0) == []
+
+
+def test_the_search_widens_until_it_has_as_many_as_the_frame_reads(monkeypatch):
+    """One wide box could hit BirdWeather's page cap and leave out the nearest."""
+    asked = []
+
+    def post(_endpoint, _query, _timeout, **variables):
+        asked.append(variables)
+        nodes = [
+            {"id": str(n), "name": f"Station {n}", "coords": {"lat": 60 + n / 4, "lon": 10}}
+            for n in (6, 2, 4, 0, 5, 1, 3)
+        ]
+        return {"stations": {"nodes": nodes}}
+
+    monkeypatch.setattr(birdweather, "_post", post)
+    found = birdweather.nearest(60, 10)
+    assert [station.id for station in found] == ["0", "1", "2", "3", "4"]
+    assert len(asked) == 3  # 28 km apart: 25 km holds one station, 100 km four
+    assert asked[0]["period"] == {"count": 7, "unit": "day"}

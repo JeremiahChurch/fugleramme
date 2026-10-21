@@ -670,7 +670,7 @@ def test_a_station_shows_its_own_field_and_keeps_birdnet_go_s(tmp_path, station)
     assert '<input type="radio" name="detector_kind" value="birdweather" checked>' in form
     assert f"{admin._logo(BIRDWEATHER)}BirdWeather station(s)</label>" in form
     assert '<div class="field stations" data-kind="birdweather" data-most="5">' in form
-    assert "<span>Stations <small>(ID or page)</small></span>" in form
+    assert "<span>Stations <small>(ID or address)</small></span>" in form
     assert f'<input type="text" name="detector_station" value="{url}">' in form  # an ID is no URL
     # Hidden and disabled, so a save posts nothing and the stored ones stand.
     assert '<label data-kind="birdnet-go" hidden><span>Address' in form
@@ -729,7 +729,7 @@ def test_a_refused_save_comes_back_on_the_type_it_was_refused_for(tmp_path, sour
     """The note sits under the field to fix, which must be the one shown."""
     form = _detector_form(_page(tmp_path, source(), refused=BIRDWEATHER, stations="nest box"))
     assert '<input type="radio" name="detector_kind" value="birdweather" checked>' in form
-    assert re.search(r'Add station</button></div><p class="note bad">', form)
+    assert re.search(r'</dialog></div><p class="note bad">', form)
 
 
 def test_a_missing_station_is_not_called_unreachable(tmp_path, station):

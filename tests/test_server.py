@@ -19,7 +19,7 @@ from types import SimpleNamespace
 import pytest
 from PIL import Image
 
-from fugleramme import api
+from fugleramme import api, birdweather, fake
 from fugleramme.api import ApiSource
 from fugleramme.settings import Settings, SettingsStore
 from fugleramme.status import Status
@@ -322,6 +322,19 @@ def test_the_connection_test_answers_over_the_wire(frame):
     with urllib.request.urlopen(request, timeout=10) as response:
         answer = json.loads(response.read())
     assert answer["state"] == "unreachable"
+
+
+def test_the_search_answers_with_stations_or_why_there_are_none(frame, detector, monkeypatch):
+    url, _httpd = detector(birdweather=True)
+    monkeypatch.setattr(birdweather, "BIRDWEATHER_SITE", url)
+    _status, _headers, body = _fetch(frame + "/stations?lat=59.9&lon=10.7")
+    assert [station["id"] for station in json.loads(body)["stations"]] == [fake.STATION_ID]
+    _status, _headers, body = _fetch(frame + "/stations?lat=0&lon=0")
+    assert json.loads(body) == {"stations": [], "text": "No active stations within 400 km."}
+    monkeypatch.setattr(birdweather, "BIRDWEATHER_SITE", "http://127.0.0.1:1")
+    _status, _headers, body = _fetch(frame + "/stations?lat=0&lon=0")
+    assert json.loads(body)["text"].startswith("BirdWeather unreachable")
+    assert _fetch(frame + "/stations?lat=north")[0] == 400
 
 
 def test_the_kiosk_holds_its_last_page_when_the_detector_goes_away(tmp_path, detector, monkeypatch):

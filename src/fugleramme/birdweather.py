@@ -10,6 +10,7 @@ questions to `/graphql` on the same host. Several stations are asked as one, by
     topSpecies             -> per-species counts over a rolling window
     dailyDetectionCounts   -> per-species counts per UTC day, the whole record
     allSpecies             -> a species' names in every language BirdWeather has
+    stations               -> the stations in a box, for the admin's search
 
 It is someone else's service, shared by every frame reading the same station and
 asked every few seconds, and a POST gets no working ETag. So an answer is held
@@ -21,6 +22,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import threading
 import time
 from collections import Counter
@@ -35,6 +37,8 @@ from urllib.request import Request, urlopen
 from .names import canonical
 from .source import (
     BIRDWEATHER,
+    BIRDWEATHER_SITE,
+    MOST_STATIONS,
     Detection,
     NoSuchStation,
     Species,
@@ -55,6 +59,10 @@ _PAGE = 500  # `first` is capped here without a word, so anything longer pages
 # topSpecies answers 10 rows unless asked for more; no station hears this many.
 _TOP = 5000
 _USER_AGENT = "fugleramme"
+# How far the station search looks, widening until it has a page of stations. Each
+# is a box of its own: one wide box can hit `_PAGE` and leave out the nearest.
+RADII_KM = (25, 100, 400)
+_EARTH_KM = 6371.0
 
 _stations = count(1)
 
@@ -93,6 +101,15 @@ query ($ids: [ID!], $period: InputDuration) {
 """
 
 
+# Only stations heard from within `period`; without it, every one ever set up.
+_STATIONS = """
+query ($ne: InputLocation!, $sw: InputLocation!, $period: InputDuration, $first: Int) {
+  stations(ne: $ne, sw: $sw, period: $period, first: $first) {
+    nodes { id name coords { lat lon } }
+  }
+}
+"""
+
 _ALL_SPECIES = """
 query ($ids: [ID!]!, $first: Int, $after: String) {
   allSpecies(ids: $ids, first: $first, after: $after) {
@@ -123,6 +140,93 @@ def translations(node: dict) -> dict[str, str]:
     )
     named = {code: name for code, name in codes if code and name}
     return named | ({"en": node["commonName"]} if node.get("commonName") else {})
+
+
+def _post(endpoint: str, query: str, timeout: float, **variables: Any) -> dict:
+    """The answer's `data`. A station BirdWeather does not have answers 404,
+    an error in the query 200 with `errors`; both raise."""
+    body = json.dumps({"query": query, "variables": variables}).encode()
+    request = Request(
+        endpoint,
+        data=body,
+        headers={"Content-Type": "application/json", "User-Agent": _USER_AGENT},
+    )
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            answer = response.read()
+    except HTTPError as error:
+        if error.code == 404:
+            raise NoSuchStation("BirdWeather has no such station") from error
+        raise Unavailable(f"BirdWeather answered {error.code}") from error
+    except (URLError, OSError) as error:
+        # Slow is not unreachable: that would send the reader to check a fine network.
+        if isinstance(error.reason if isinstance(error, URLError) else error, TimeoutError):
+            raise Unavailable(f"BirdWeather did not answer within {timeout:g}s") from error
+        raise Unavailable(f"BirdWeather unreachable: {error}") from error
+    try:
+        data = json.loads(answer)
+    except ValueError as error:
+        raise Unavailable("BirdWeather answered no JSON") from error
+    if not isinstance(data, dict) or data.get("errors") or not isinstance(data.get("data"), dict):
+        errors = data.get("errors") if isinstance(data, dict) else data
+        raise Unavailable(f"BirdWeather answered an error: {errors}")
+    return data["data"]
+
+
+class Station(NamedTuple):
+    """A public station, as the admin's search lists it."""
+
+    id: str
+    name: str
+    km: float  # from the place searched for
+
+
+def _km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Great-circle distance (haversine)."""
+    a = (
+        math.sin(math.radians(lat2 - lat1) / 2) ** 2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(math.radians(lon2 - lon1) / 2) ** 2
+    )
+    return 2 * _EARTH_KM * math.asin(math.sqrt(a))
+
+
+def _within(lat: float, lon: float, km: float) -> list[Station]:
+    """The stations heard from this week within `km`, nearest first. BirdWeather
+    filters by a box, and loosely since its coords are blurred, so the box is
+    asked around the circle and the circle cut here. A box over the antimeridian
+    stops at it."""
+    rise = math.degrees(km / _EARTH_KM)
+    run = min(180.0, rise / max(math.cos(math.radians(lat)), 1e-6))
+    data = _post(
+        f"{BIRDWEATHER_SITE}/graphql",
+        _STATIONS,
+        _TIMEOUT,
+        ne={"lat": min(90.0, lat + rise), "lon": min(180.0, lon + run)},
+        sw={"lat": max(-90.0, lat - rise), "lon": max(-180.0, lon - run)},
+        period={"count": 7, "unit": "day"},
+        first=_PAGE,
+    )
+    found = (
+        Station(
+            str(node["id"]),
+            node["name"],
+            _km(lat, lon, node["coords"]["lat"], node["coords"]["lon"]),
+        )
+        for node in data["stations"]["nodes"]
+    )
+    return sorted((station for station in found if station.km <= km), key=lambda s: s.km)
+
+
+def nearest(lat: float, lon: float) -> list[Station]:
+    """The stations heard from this week nearest a place, as many as the frame
+    reads, within the widest of `RADII_KM`."""
+    for km in RADII_KM:
+        found = _within(lat, lon, km)
+        if len(found) >= MOST_STATIONS:
+            break
+    return found[:MOST_STATIONS]
 
 
 class _Day(NamedTuple):
@@ -182,40 +286,7 @@ class BirdWeatherSource:
     # -- transport ---------------------------------------------------------
 
     def _query(self, query: str, **variables: Any) -> dict:
-        """The answer's `data`. A station BirdWeather does not have answers 404,
-        an error in the query 200 with `errors`; both raise."""
-        body = json.dumps({"query": query, "variables": variables}).encode()
-        request = Request(
-            self._endpoint,
-            data=body,
-            headers={"Content-Type": "application/json", "User-Agent": _USER_AGENT},
-        )
-        try:
-            with urlopen(request, timeout=self._timeout) as response:
-                answer = response.read()
-        except HTTPError as error:
-            if error.code == 404:
-                raise NoSuchStation("BirdWeather has no such station") from error
-            raise Unavailable(f"BirdWeather answered {error.code}") from error
-        except (URLError, OSError) as error:
-            # Slow is not unreachable: that would send the reader to check a fine network.
-            if isinstance(error.reason if isinstance(error, URLError) else error, TimeoutError):
-                raise Unavailable(
-                    f"BirdWeather did not answer within {self._timeout:g}s"
-                ) from error
-            raise Unavailable(f"BirdWeather unreachable: {error}") from error
-        try:
-            data = json.loads(answer)
-        except ValueError as error:
-            raise Unavailable("BirdWeather answered no JSON") from error
-        if (
-            not isinstance(data, dict)
-            or data.get("errors")
-            or not isinstance(data.get("data"), dict)
-        ):
-            errors = data.get("errors") if isinstance(data, dict) else data
-            raise Unavailable(f"BirdWeather answered an error: {errors}")
-        return data["data"]
+        return _post(self._endpoint, query, self._timeout, **variables)
 
     def _cached(self, key: tuple, ttl: float, fetch: Callable[[], Any]) -> Any:
         """Held for `ttl`, a failure for `_RETRY`. An answer in a shape the fetch

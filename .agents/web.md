@@ -20,6 +20,7 @@ Covers the `web/` package.
 - Each type keeps its own fields. The other type's are `hidden` and `disabled`, so a save posts nothing for them and their stored values stand for a switch back; `admin.js` swaps them before the form's dirty check reads it. Both are text inputs: a url input would refuse a bare station ID and a BirdNET-Go typed without a scheme.
 - An address typed into the wrong type's field is refused and nothing is saved, since settings would otherwise drop the station or save it as a BirdNET-Go. A refused save carries the stations across the redirect, so the note names the one it was refused for.
 - BirdWeather's stations are a row each, all posting `detector_station`, which `admin.form_changes` joins with commas the way settings hold them. `admin.js` adds and removes rows and fires `input`, since the dirty check would not see a removed row otherwise.
+- **Find stations…** is a `dialog` that only fills the rows. Its field has no `name`, so nothing of it posts. The places are Photon's, since Nominatim's usage policy forbids search-as-you-type.
 - Each station's line in the Detector row carries its own logo, so Test connection's answer brings logos `admin.js` has to load (`showLogos`).
 - The detectors' favicons are loaded by the browser at runtime (`admin._logo`): they are other projects' brand marks, so the repo holds no copy.
 

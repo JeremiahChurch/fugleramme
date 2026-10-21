@@ -57,7 +57,9 @@ JSON = "application/json"
 
 # What a password covers (#52). The kiosk stays open whatever is set: it is the
 # product, and the demo page and the container's healthcheck read it as strangers.
-GATED = frozenset({"/admin", "/preview.png", "/species", "/update", "/detector", LOGOUT})
+GATED = frozenset(
+    {"/admin", "/preview.png", "/species", "/stations", "/update", "/detector", LOGOUT}
+)
 
 COOKIE = "fugleramme_session"
 SESSION_SECONDS = 7 * 24 * 60 * 60  # a week, the session BirdNET-Go hands out
@@ -384,6 +386,15 @@ def make_handler(
                 JSON,
             )
 
+        def _stations(self):
+            query = self._query()
+            try:
+                lat, lon = float(query["lat"][0]), float(query["lon"][0])
+            except (KeyError, ValueError):
+                self._send(400, b"bad place", "text/plain")
+                return
+            self._send(200, json.dumps(admin.stations_near(lat, lon)).encode(), JSON)
+
         def _admin(self):
             settings = store.get()
             html = admin.page(
@@ -425,6 +436,7 @@ def make_handler(
             "/state": _state,
             "/paper.png": _paper,
             "/species": _species,
+            "/stations": _stations,
             "/admin": _admin,
             "/update": _update,
             "/health": _health,

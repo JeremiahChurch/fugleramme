@@ -25,6 +25,7 @@ Covers `source.py`, `api.py`, `birdweather.py`, `taxa.py`, `languages.py` and `f
 - Root `detections` answers the last 24 hours unless given a `period`, so the feed asks for the whole record. Without it a station quiet since yesterday reads as empty.
 - **Caching is ours.** A POST gets no working ETag, rate limits are undocumented, and many frames polling every few seconds can share one public station, so every answer is held; the record's last two UTC days are asked again each minute, since an upload can land on yesterday after UTC midnight.
 - Limits it never reports: `first` caps at 500, `topSpecies` at 10 rows without a `limit`, and a query with more than three `detections` fields is refused. `detections.totalCount` counts every station's, so nothing reads it.
+- **The station search** (`nearest`): `stations(ne, sw)` filters loosely by a box, so the circle is cut here. Each of `RADII_KM` is its own query, since one wide box can hit the 500 cap and miss the nearest. Without a `period` it answers every station ever set up.
 - **`dailyDetectionCounts` bins by UTC day** whatever timezone is asked for, so the record starts at `earliestDetectionAt`'s UTC date.
 - **There is no first-heard field.** The life list dates a species to its first UTC day, at noon so the date holds from UTC-11 to UTC+12. Only a first day of today or yesterday is read to the detection, since "new" is counted in hours (`modes.NEW_HOURS`) and detections come newest first only, so that reads the whole day.
 
