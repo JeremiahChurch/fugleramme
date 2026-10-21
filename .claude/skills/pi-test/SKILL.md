@@ -52,8 +52,6 @@ Pi's `frame.env`.
 
 ## Cautions
 
-- Never run pytest on the Pi with the frame stopped: the service tests drive the real panel.
-  CI is the Linux check.
 - The admin's Install button and auto-update toggle check a release out over the deploy. Ask
   the user to leave both alone while testing.
 - Per-Pi files (`frame.env`, `detector/.env`, `settings.json`) are gitignored and survive the
