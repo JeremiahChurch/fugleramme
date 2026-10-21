@@ -12995,6 +12995,30 @@
    936
   ]
  },
+ "birds/spizelloides-arborea-2.webp": {
+  "box": [
+   0.4731,
+   0.0098,
+   0.824,
+   0.4658
+  ],
+  "cut": [
+   1200,
+   1077
+  ]
+ },
+ "birds/spizelloides-arborea.webp": {
+  "box": [
+   0.3802,
+   0.3005,
+   0.9216,
+   0.6927
+  ],
+  "cut": [
+   1200,
+   1187
+  ]
+ },
  "birds/spodiopsar-cineraceus.webp": {
   "box": [
    0.07795054200527471,
