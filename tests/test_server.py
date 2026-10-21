@@ -362,6 +362,44 @@ def test_an_emptied_field_clears_the_setting(frame, tmp_path):
     assert post(detector_url="http://127.0.0.1:1", detector_username="").detector_username == ""
 
 
+def test_a_station_typed_as_birdnet_go_s_address_is_refused(frame, tmp_path):
+    """Refused and said so, rather than saved into a frame that reads nothing."""
+    store = SettingsStore(tmp_path / SETTINGS)
+    station = "https://app.birdweather.com/stations/31086"
+    fields = {"detector_kind": "birdnet-go", "detector_url": station}
+
+    status, headers, _body = _post(frame + "/admin", fields)
+    assert (status, headers["Location"]) == (303, "/admin?refused=birdnet-go&stations=")
+    assert store.get().detector_url == Settings().detector_url
+
+    _status, _headers, page = _fetch(frame + headers["Location"])
+    assert b"Not saved. That is a BirdWeather station." in page
+
+
+def test_a_refused_station_is_named_on_the_page_it_comes_back_to(frame, tmp_path):
+    rows = [("detector_station", "31086"), ("detector_station", "nest box")]
+    status, headers, _body = _post(frame + "/admin", [("detector_kind", "birdweather"), *rows])
+    assert status == 303 and headers["Location"].startswith("/admin?refused=birdweather&")
+    assert SettingsStore(tmp_path / SETTINGS).get().detector_station == ""
+
+    _status, _headers, page = _fetch(frame + headers["Location"])
+    assert b"Not saved. &quot;nest box&quot; is not a BirdWeather station." in page
+
+
+def test_a_station_is_saved_from_its_id(frame, tmp_path):
+    store = SettingsStore(tmp_path / SETTINGS)
+    status, headers, _body = _post(
+        frame + "/admin", {"detector_kind": "birdweather", "detector_station": "31086"}
+    )
+    assert (status, headers["Location"]) == (303, "/admin")
+    saved = store.get()
+    assert (saved.detector_kind, saved.detector_station, saved.detector_url) == (
+        "birdweather",
+        "https://app.birdweather.com/stations/31086",
+        Settings().detector_url,  # BirdNET-Go's, kept for a switch back
+    )
+
+
 def test_a_detector_that_stays_away_is_reported_once(stranded, caplog):
     """The kiosk polls every few seconds, so one warning per failed request would
     fill the journal for as long as the detector is gone."""

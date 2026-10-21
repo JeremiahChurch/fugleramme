@@ -37,7 +37,7 @@ from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import ClassVar
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 
 from .. import __version__, e6, modes, updates
 from ..languages import namer
@@ -393,6 +393,8 @@ def make_handler(
                 resolution_of(panel),
                 panel is not None,
                 store.path.parent,
+                self._query().get("refused", [""])[0],
+                self._query().get("stations", [""])[0],
             )
             self._send(200, html.encode(), HTML)
 
@@ -521,6 +523,12 @@ def make_handler(
                     status.reboot_error = str(error)
             else:
                 changes = admin.form_changes(form)
+                refused = admin.refused(changes)
+                if refused:
+                    # The stations too, so the note can name the one it was refused for.
+                    held = {"refused": refused, "stations": changes.get("detector_station", "")}
+                    self._redirect(f"/admin?{urlencode(held)}")
+                    return
                 password = changes.get("admin_password")
                 # Without this the old password, set back, would revive the cookies it signed.
                 if password is not None and password != store.get().admin_password:

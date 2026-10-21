@@ -61,6 +61,9 @@ The installer asks **Do you have BirdNET-Go installed?**
 Answer 2 or 3 and no docker containers will be installed, and the mic check is skipped.
 The installer says whether the address answered or is reachable, but continues either way (you can always edit this in the admin panel later).
 
+To use [BirdWeather](operations.md#using-birdweather-instead-of-birdnet-go) instead,
+answer 3, keep the default address and set the station on the admin page's Detector tab.
+
 ### Ports
 
 Two more prompts: the frame's web interface (`8080`) and, if it is installing

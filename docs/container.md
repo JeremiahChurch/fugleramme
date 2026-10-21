@@ -1,7 +1,8 @@
 # Container
 
 Fugleramme as a container image, for a homelab or any machine with docker.
-Connect it to a BirdNET-Go you already run, or bring both up together, and see
+Connect it to a BirdNET-Go you already run, bring both up together, or use a
+public [BirdWeather station](operations.md#using-birdweather-instead-of-birdnet-go), and see
 the collage in a browser.
 
 > [!NOTE]
@@ -59,6 +60,8 @@ Every setting on the admin page can be seeded with `FUGLERAMME_<NAME>`:
       FUGLERAMME_DETECTOR_URL: http://birdnet.local:8080
       FUGLERAMME_DETECTOR_PASSWORD: my-secret-password
       FUGLERAMME_DETECTOR_USERNAME: birdnet-client   # only if you changed BirdNET-Go's client id
+      FUGLERAMME_DETECTOR_KIND: birdnet-go           # birdnet-go | birdweather
+      FUGLERAMME_DETECTOR_STATION: ""                # BirdWeather station ID(s), comma-separated
       FUGLERAMME_MODE: collage                       # collage | latest | arrival
       FUGLERAMME_WEB_RESOLUTION: 1080p               # 720p | 1080p | 1440p | 4K
       FUGLERAMME_WEB_ASPECT: "4:3"                   # 16:9 | 16:10 | 4:3 | 3:2

@@ -27,7 +27,8 @@ Kiosk on `http://localhost:8080/`, admin on `/admin`.
 
 The fake serves the same `/api/v2` endpoints the frame reads, over generated
 detections; `--auth` and `--down` reproduce a locked-down and an unreachable
-station. To work against a real one instead, pass its address:
+station. With `--birdweather` it is a BirdWeather station instead, at
+`http://127.0.0.1:8090/stations/1` on the Detector tab. To work against a real one instead, pass its address:
 `uv run fugleramme-dev --detector http://birdnet.local:8090`.
 `uv run fugleramme-check` says whether a detector answers everything the frame
 needs, and is the first thing to run when a page comes up empty.

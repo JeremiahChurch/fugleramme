@@ -3,9 +3,9 @@ contact_links:
   - name: Idea, feature request or question
     url: https://github.com/arnegiacomo/fugleramme/discussions
     about: Anything that isn't a bug. Start a big feature here before building it.
-  - name: Detection, mic, MQTT or BirdWeather
+  - name: Detection, mic, MQTT or BirdWeather uploads
     url: https://github.com/tphakala/birdnet-go/issues
-    about: The detector is BirdNET-Go. Missed or wrong species belong there.
+    about: Missed or wrong species belong with BirdNET-Go, or with the station if the frame reads BirdWeather.
   - name: Artwork you have already cut
     url: https://github.com/arnegiacomo/fugleramme/blob/main/CONTRIBUTING.md#artwork
     about: Open a PR instead - no issue needed.

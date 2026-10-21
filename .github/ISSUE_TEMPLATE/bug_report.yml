@@ -6,7 +6,8 @@ body:
     attributes:
       value: |
         Detection itself - missed birds, wrong species, mic setup, MQTT - belongs
-        to [BirdNET-Go](https://github.com/tphakala/birdnet-go/issues). This
+        to [BirdNET-Go](https://github.com/tphakala/birdnet-go/issues), or to the
+        station if the frame reads BirdWeather. This
         tracker is for the frame: the panel, the collage, the admin page and the
         install.
 
@@ -49,6 +50,6 @@ body:
     attributes:
       label: Logs
       description: |
-        `journalctl -u fugleramme-frame -n 100 --no-pager`, and for the detector
-        `docker compose -f detector/docker-compose.yml logs --tail 100`.
+        `journalctl -u fugleramme-frame -n 100 --no-pager`, and if Fugleramme runs
+        BirdNET-Go for you, `docker compose -f detector/docker-compose.yml logs --tail 100`.
       render: text

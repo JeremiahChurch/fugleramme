@@ -3,13 +3,30 @@ const cfg = JSON.parse(document.getElementById("config").textContent);
 
 // A loopback detector is only loopback from the Pi, so a remote browser follows
 // this page's own host on its port; anything else is linked as configured.
-const birdnet = cfg.birdnetPort
-  ? location.protocol + "//" + location.hostname + ":" + cfg.birdnetPort
-  : cfg.birdnetUrl;
-document.getElementById("birdnet").href = birdnet + "/";
+const reach = (url, port) => port ? location.protocol + "//" + location.hostname + ":" + port : url;
+const birdnet = reach(cfg.birdnetUrl, cfg.birdnetPort);
+const detectorLink = document.getElementById("birdnet");  // several stations are a list instead
+if (detectorLink) detectorLink.href = birdnet + "/";
 
-// Not queryType=species: BirdNET-Go shows only today's for that.
+// Each detector's own favicon: BirdNET-Go's off its repository at a release tag,
+// so it shows whether or not one is running. Shown once loaded, so one that
+// cannot load - a browser offline - leaves no gap and no broken image.
+const LOGOS = {
+  "birdnet-go": "https://cdn.jsdelivr.net/gh/tphakala/birdnet-go@20261014/frontend/static/favicon-32x32.png",
+  birdweather: "https://app.birdweather.com/favicon-32x32.png",
+};
+function showLogos(root) {
+  for (const img of root.querySelectorAll("img.logo")) {
+    img.addEventListener("load", () => { img.hidden = false; });
+    img.src = LOGOS[img.dataset.kind];
+  }
+}
+showLogos(document);
+
+// Not queryType=species: BirdNET-Go shows only today's for that. A BirdWeather
+// station's page has no search to link into.
 function linkSpecies() {
+  if (cfg.kind === "birdweather") return;
   for (const a of document.querySelectorAll("#species a[data-species]")) {
     a.href = birdnet + "/ui/detections?search=" + encodeURIComponent(a.dataset.species);
   }
@@ -164,19 +181,60 @@ if (test) {
       const answer = await fetch("/detector", {method: "POST", body});
       if (signedOut(answer)) return;
       const result = await answer.json();
-      // "names" is a working detector holding back one thing, so it warns
-      // rather than fails.
-      outcome.className = {ok: "ok", names: "warn"}[result.state] || "bad";
+      // "names" is a working detector holding back one thing, and "partial"
+      // stations BirdWeather has only some of, so they warn rather than fail.
+      outcome.className = {ok: "ok", names: "warn", partial: "warn"}[result.state] || "bad";
       outcome.textContent = result.text;
       // The row is about the detector the frame reads from, so only a test of
       // the saved values speaks for it - edited ones may never be saved.
-      if (!changed.get(detectorForm)()) row.innerHTML = result.status;
+      if (!changed.get(detectorForm)()) {
+        row.innerHTML = result.status;
+        showLogos(row);  // a station's line carries its own
+      }
     } catch (e) {
       outcome.className = "bad";
       outcome.textContent = "the frame did not answer";
     }
     test.disabled = false;
   });
+}
+
+// Each detector type has its own fields: BirdNET-Go's address and password,
+// BirdWeather's stations. Hidden, the other type's post nothing, so their stored
+// values stand for a switch back.
+for (const kind of document.querySelectorAll("input[name=detector_kind]")) {
+  kind.addEventListener("input", () => {  // before the form's own dirty check reads it
+    for (const field of document.querySelectorAll("#detector label[data-kind], #detector div[data-kind]")) {
+      reveal(field, field.dataset.kind === kind.value);
+    }
+  });
+}
+
+// A row per BirdWeather station. The last row's × empties it rather than leaving
+// nothing to type into, and Add stops at the most the frame reads.
+const stations = document.querySelector("#detector .stations");
+if (stations) {
+  const add = stations.querySelector("button.add");
+  const rows = () => stations.querySelectorAll(".station");
+  const sync = () => { add.hidden = rows().length >= Number(stations.dataset.most); };
+  stations.addEventListener("click", (e) => {
+    const row = e.target.closest(".station");
+    if (e.target.matches("button.remove") && rows().length > 1) {
+      row.remove();
+    } else if (e.target.matches("button.remove")) {
+      row.querySelector("input").value = "";
+    } else if (e.target === add) {
+      const fresh = rows()[0].cloneNode(true);
+      fresh.querySelector("input").value = "";
+      add.before(fresh);
+      fresh.querySelector("input").focus();
+    } else {
+      return;
+    }
+    sync();
+    stations.dispatchEvent(new Event("input", {bubbles: true}));  // for the form's dirty check
+  });
+  sync();
 }
 
 // A field standing in for a stored password empties on focus, so what is typed is

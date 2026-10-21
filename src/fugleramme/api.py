@@ -31,9 +31,18 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urljoin
 from urllib.request import HTTPCookieProcessor, HTTPRedirectHandler, Request, build_opener
 
+from .birdweather import BirdWeatherSource
 from .names import canonical, normalize
 from .settings import SettingsStore
-from .source import NEEDS_PASSWORD, Detection, Species, Unavailable
+from .source import (
+    BIRDNET_GO,
+    BIRDWEATHER,
+    NEEDS_PASSWORD,
+    Detection,
+    NoSuchStation,
+    Species,
+    Unavailable,
+)
 from .taxa import is_bird
 
 log = logging.getLogger(__name__)
@@ -203,6 +212,8 @@ def _merged(rows: Any) -> Any:
 
 class ApiSource:
     """A `source.Source` over one BirdNET-Go instance."""
+
+    kind = BIRDNET_GO
 
     def __init__(
         self,
@@ -451,30 +462,38 @@ class ApiSource:
 class Configured:
     """The detector the settings name, rebuilt when they name another one.
 
-    `ApiSource` binds its address and credentials at construction, so the render
-    loop, the HTTP server and `languages` hold this wrapper instead and a swap
-    reaches all three at once. Nothing may be called out to while the lock is
-    held: `languages` expires its own caches by station rather than being told.
+    A source binds its kind, address and credentials at construction, so the
+    render loop, the HTTP server and `languages` hold this wrapper instead and a
+    swap reaches all three at once. Nothing may be called out to while the lock
+    is held: `languages` expires its own caches by station rather than being told.
     """
 
     def __init__(self, store: SettingsStore, timeout: float = _TIMEOUT):
         self._store = store
         self._timeout = timeout
         self._lock = threading.Lock()
-        self._key: tuple[str, str, str] | None = None
-        self._source: ApiSource | None = None
+        self._key: tuple[str, str, str, str] | None = None
+        self._source: ApiSource | BirdWeatherSource | None = None
 
     @property
-    def source(self) -> ApiSource:
+    def source(self) -> ApiSource | BirdWeatherSource:
         settings = self._store.get()
-        key = (settings.detector_url, settings.detector_username, settings.detector_password)
+        kind, url = settings.detector_kind, settings.detector_address
+        key = (kind, url, settings.detector_username, settings.detector_password)
         with self._lock:
             if key == self._key and self._source is not None:
                 return self._source
             if self._key is not None:
-                log.info("Detector is now %s", key[0])
-            self._key, self._source = key, ApiSource(*key, timeout=self._timeout)
+                log.info("Detector is now %s", url)
+            self._key, self._source = key, self._build(*key)
             return self._source
+
+    def _build(
+        self, kind: str, url: str, username: str, password: str
+    ) -> ApiSource | BirdWeatherSource:
+        if kind == BIRDWEATHER:
+            return BirdWeatherSource(url, timeout=self._timeout)
+        return ApiSource(url, username, password, timeout=self._timeout)
 
     def latest(self) -> Detection | None:
         return self.source.latest()
@@ -501,7 +520,25 @@ class Configured:
         headers: dict[str, str] | None = None,
         params: dict[str, Any] | None = None,
     ) -> tuple[int, dict[str, str], bytes]:
-        return self.source.request(path, method, headers, params)
+        """BirdNET-Go's own API, which `languages` reads a BirdNET-Go's names
+        from. A BirdWeather station has none: see `common_names`."""
+        source = self.source
+        if not isinstance(source, ApiSource):
+            raise Unavailable(f"{source.base_url} serves no BirdNET-Go API")
+        return source.request(path, method, headers, params)
+
+    def common_names(self) -> dict[str, dict[str, str]]:
+        """A BirdWeather station's names, which `languages` reads instead of
+        asking `request`."""
+        source = self.source
+        if not isinstance(source, BirdWeatherSource):
+            raise Unavailable(f"{source.base_url} names its birds through `request`")
+        return source.common_names()
+
+    @property
+    def kind(self) -> str:
+        """Which kind of detector this is, out of `source.DETECTOR_KINDS`."""
+        return self.source.kind
 
     @property
     def base_url(self) -> str:
@@ -529,9 +566,31 @@ def _reach(source: ApiSource, path: str, **params: Any) -> tuple[int, str]:
         return 0, str(error)
 
 
-def probe(url: str, username: str = "", password: str = "") -> tuple[str, str]:
+def _probe_station(url: str) -> tuple[str, str]:
+    """BirdWeather stations: "ok" with their names, "partial" when BirdWeather
+    has only some of them, "missing" when it has none, or "unreachable". A
+    detection is read as well as the names, since the detections are what the
+    frame reads."""
+    source = BirdWeatherSource(url, timeout=_TIMEOUT)
+    try:
+        about = source.about()
+        source.recent(1)
+    except NoSuchStation as error:
+        return "missing", str(error)
+    except Unavailable as error:
+        return "unreachable", str(error)
+    named = [
+        str(row.get("name") or id_) if row else f"{id_}: no such station"
+        for id_, row in about.items()
+    ]
+    return ("ok" if all(about.values()) else "partial"), ", ".join(named)
+
+
+def probe(
+    url: str, username: str = "", password: str = "", kind: str = BIRDNET_GO
+) -> tuple[str, str]:
     """The admin's connection test: (state, detail), state one of "ok", "auth",
-    "names" or "unreachable".
+    "names" or "unreachable" - or for BirdWeather stations, `_probe_station`'s.
 
     Two endpoints, because BirdNET-Go gates them differently. PrivateMode covers
     the whole API, but `/settings/*` sits behind authentication whenever any
@@ -542,6 +601,8 @@ def probe(url: str, username: str = "", password: str = "") -> tuple[str, str]:
 
     One source for both, so the session the first call logs in serves the second.
     """
+    if kind == BIRDWEATHER:
+        return _probe_station(url)
     refused = "credentials rejected" if password else NEEDS_PASSWORD
     source = ApiSource(url, username, password)
     status, failure = _reach(source, _DETECTIONS, limit=1)

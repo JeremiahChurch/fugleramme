@@ -15,6 +15,14 @@ Covers the `web/` package.
 - `admin_password` is stored in the clear beside `detector_password` deliberately - `FUGLERAMME_ADMIN_PASSWORD` seeds a container, and a hand edit is how a locked-out Pi gets back in. BirdNET-Go stores its own the same way.
 - `SameSite=Lax` keeps the cookie off another site's POST, and `do_POST` refuses a `Sec-Fetch-Site: cross-site` request besides - which is what protects a frame with no password set at all. Comparing `Origin` to `Host` instead would lock out anyone running the frame behind an HTTPS proxy.
 
+## The Detector tab (`admin._detector_field`, `admin.refused`)
+
+- Each type keeps its own fields. The other type's are `hidden` and `disabled`, so a save posts nothing for them and their stored values stand for a switch back; `admin.js` swaps them before the form's dirty check reads it. Both are text inputs: a url input would refuse a bare station ID and a BirdNET-Go typed without a scheme.
+- An address typed into the wrong type's field is refused and nothing is saved, since settings would otherwise drop the station or save it as a BirdNET-Go. A refused save carries the stations across the redirect, so the note names the one it was refused for.
+- BirdWeather's stations are a row each, all posting `detector_station`, which `admin.form_changes` joins with commas the way settings hold them. `admin.js` adds and removes rows and fires `input`, since the dirty check would not see a removed row otherwise.
+- Each station's line in the Detector row carries its own logo, so Test connection's answer brings logos `admin.js` has to load (`showLogos`).
+- The detectors' favicons are loaded by the browser at runtime (`admin._logo`): they are other projects' brand marks, so the repo holds no copy.
+
 ## The web pages are files (`web/static/`)
 
 - `admin.js` is static and cached: it reads its server values from a JSON blob in the page rather than being built per request.

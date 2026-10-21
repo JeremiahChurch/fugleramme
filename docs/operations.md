@@ -1,6 +1,6 @@
 # Operations
 
-Running the frame day to day: the buttons, updates, ports, the BirdNET-Go address, sign-in and Wi-Fi.
+Running the frame day to day: the buttons, updates, ports, the BirdNET-Go address or BirdWeather station, sign-in and Wi-Fi.
 
 ## Buttons
 
@@ -78,10 +78,10 @@ admin page. Updates never touch either.
 
 ## Pointing the frame at a different BirdNET-Go
 
-The admin page's Detector tab has the address, and a password for an instance
-with Basic Authentication configured (OIDC not supported yet). Saving takes
-effect straight away (no restart). **Test connection** lets you check before
-saving the changes.
+The admin page's Detector tab has the address (`http://` is assumed if you
+leave it out), and a password for an instance with Basic Authentication
+configured (OIDC not supported yet). Saving takes effect straight away (no
+restart). **Test connection** lets you check before saving the changes.
 
 The frame reads detections only. Everything about how birds are detected stays
 in BirdNET-Go's own settings.
@@ -90,6 +90,23 @@ If Fugleramme was running a BirdNET-Go of its own and you move the frame to
 another instance for good, re-run `./install.sh` and answer 2 or 3. It offers to stop
 the old container and hand the port back, so updates stop pulling an image
  and you stop the running container. Your detections stay in `detector/data` either way. Changing only the address on the admin page leaves the old container running, which is what you want if you plan to point back in the future.
+
+## Using BirdWeather instead of BirdNET-Go
+
+The frame can use a public [BirdWeather](https://app.birdweather.com) station
+(e.g. a PUC or BirdNET-Pi) instead of BirdNET-Go.
+
+On the Detector tab, set **Type** to **BirdWeather station(s)** and enter the
+station's page (`https://app.birdweather.com/stations/<ID>`) or just its ID under
+**Stations**. **Test connection** shows the station's name,
+and saving takes effect straight away. BirdNET-Go's address and password are kept, in case you switch back.
+Want to try it first? Use mine: `31086`.
+
+You can add up to five stations with **+ Add station**. Their birds show on one page together.
+If a station goes missing, the rest still show and the Detector tab marks it red.
+
+Only public stations work. The names come in the languages BirdWeather has, see
+[Languages](languages.md).
 
 ## Enabling authentication for the admin page
 

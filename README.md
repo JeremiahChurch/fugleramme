@@ -49,11 +49,13 @@ updates itself.
 
 Already run BirdNET-Go? Point the frame at it, on the same machine or anywhere on your network.
 
+No mic or few birds in your area? Point it at a public [BirdWeather](docs/operations.md#using-birdweather-instead-of-birdnet-go) station instead - your own or anyone's.
+
 > [!TIP]
 > The e-ink panel on a Pi is what makes it a picture frame, but neither is required. Fugleramme also runs in a
 > container on basically anything - a homelab, a NAS, an old laptop - and the page takes the shape of whatever
-> shows it: a TV, an HDMI display, an external e-ink panel, any browser, or your desktop wallpaper. Everything
-> runs on your own hardware and works fully offline. See [Container](docs/container.md) and
+> shows it: a TV, an HDMI display, an external e-ink panel, any browser, or your desktop wallpaper. With BirdNET-Go,
+> everything runs on your own hardware and works fully offline. See [Container](docs/container.md) and
 > [Screens](docs/screens.md).
 
 ## Hardware
