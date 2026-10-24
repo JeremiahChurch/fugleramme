@@ -118,6 +118,9 @@ And plates after his paintings in *A Natural History of the Ducks* by **John C. 
 (1922), Biodiversity Heritage Library scans from the Commons category
 [A Natural History of the Ducks](https://commons.wikimedia.org/wiki/Category:A_Natural_History_of_the_Ducks),
 public domain.
+And colour plates after his paintings in *The Burgess Bird Book for Children* by **Thornton W. Burgess**
+(1919), from the Commons category [The Burgess Bird Book for Children](https://commons.wikimedia.org/wiki/Category:The_Burgess_Bird_Book_for_Children),
+public domain (PD-US).
 
 **Hines** - Wildlife illustrations by **Bob Hines** (Robert W. Hines, 1912-1994) for the **U.S. Fish and Wildlife Service**, from the Commons category [Robert W. Hines](https://commons.wikimedia.org/wiki/Category:Robert_W._Hines). Public domain (US Federal Government work). Manifest key: `hines`.
 
