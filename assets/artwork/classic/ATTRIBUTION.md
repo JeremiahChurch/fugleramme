@@ -29,7 +29,9 @@ and the [Internet Archive](https://archive.org/details/birdsEuropeIVGoul), publi
 Sharpe** (1850-1883), from the Commons category
 [The Birds of Asia (John Gould)](https://commons.wikimedia.org/wiki/Category:The_Birds_of_Asia_(John_Gould))
 and the [University of Kansas](https://digital.lib.ku.edu/ku-gould),
-public domain (PD-Art, PD-old-100); and *The Birds of Australia* (1840-1848),
+public domain (PD-Art, PD-old-100); *The Birds of New Guinea* (1875-1888), with
+**William Hart** and **Richard Bowdler Sharpe**, Biodiversity Heritage Library scans on
+Wikimedia Commons, public domain; and *The Birds of Australia* (1840-1848),
 illustrated by **John and Elizabeth Gould** and **Henry Constantine Richter**,
 scans from Smithsonian Libraries via [BHL](https://www.biodiversitylibrary.org/), [University of Kansas](https://digital.lib.ku.edu/ku-gould), and [Project Gutenberg / Internet Archive](https://www.gutenberg.org/ebooks/62524),
 public domain, and rawpixel's scan of the 1972 facsimile edition on

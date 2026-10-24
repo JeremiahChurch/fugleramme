@@ -2399,6 +2399,30 @@
    1200
   ]
  },
+ "birds/cacatua-sanguinea.webp": {
+  "box": [
+   0.23,
+   0.12,
+   0.79,
+   0.82
+  ],
+  "cut": [
+   785,
+   1200
+  ]
+ },
+ "birds/cacomantis-flabelliformis.webp": {
+  "box": [
+   0.05780652683213871,
+   0.4021400833129883,
+   0.6386425357067447,
+   0.9361459350585938
+  ],
+  "cut": [
+   777,
+   1200
+  ]
+ },
  "birds/calandrella-brachydactyla.webp": {
   "box": [
    0.17362747879715654,
@@ -13653,6 +13677,30 @@
   "cut": [
    898,
    780
+  ]
+ },
+ "birds/symposiachrus-trivirgatus-2.webp": {
+  "box": [
+   0.2863132892675387,
+   0.06660637855529786,
+   0.8559806895609018,
+   0.34686912536621095
+  ],
+  "cut": [
+   1115,
+   1200
+  ]
+ },
+ "birds/symposiachrus-trivirgatus.webp": {
+  "box": [
+   0.2677452711763972,
+   0.3687840270996094,
+   0.9677445036684443,
+   0.635048828125
+  ],
+  "cut": [
+   752,
+   1200
   ]
  },
  "birds/tachybaptus-ruficollis.webp": {
