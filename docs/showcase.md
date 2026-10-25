@@ -43,6 +43,12 @@ Frames people have running around the world. Click one to open it.
     </a>
   </figure>
   <figure>
+    <a href="https://fugleramme-bergen.arnegiacomo.dev">
+      <img src="https://fugleramme-bergen.arnegiacomo.dev/collage.png" alt="The frame reading five BirdWeather stations around Bergen, Norway" loading="lazy" referrerpolicy="no-referrer">
+      <figcaption>Bergen, Norway, five BirdWeather stations <small>fugleramme-bergen.arnegiacomo.dev</small></figcaption>
+    </a>
+  </figure>
+  <figure>
     <a href="https://birdies.semmel.org">
       <img src="https://birdies.semmel.org/collage.png" alt="The frame in Möhlin, Switzerland" loading="lazy" referrerpolicy="no-referrer">
       <figcaption>Möhlin, Switzerland <small>birdies.semmel.org</small></figcaption>
