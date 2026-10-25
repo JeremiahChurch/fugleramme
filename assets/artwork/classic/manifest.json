@@ -395,6 +395,18 @@
     "source": "gould",
     "url": "https://commons.wikimedia.org/wiki/File:GouldBirdsEuropeIITree_Pipit.jpg"
   },
+  "birds/antigone-canadensis.webp": {
+    "source": "audubon",
+    "url": "https://archive.org/details/birdsofamericafr05audu"
+  },
+  "birds/antrostomus-vociferus-2.webp": {
+    "source": "audubon",
+    "url": "https://commons.wikimedia.org/wiki/File:82_Whip-poor-will.jpg"
+  },
+  "birds/antrostomus-vociferus.webp": {
+    "source": "wilson",
+    "url": "https://archive.org/details/Wilson5896-v5"
+  },
   "birds/aphelocoma-californica-2.webp": {
     "source": "fuertes",
     "url": "https://archive.org/download/bulletinbiologic3238unit/page/n238.jpg"
@@ -794,6 +806,10 @@
   "birds/buteo-swainsoni.webp": {
     "source": "audubon",
     "url": "https://media.audubon.org/boa_illustration/plate-372-common-buzzard.jpg"
+  },
+  "birds/butorides-virescens.webp": {
+    "source": "dekay",
+    "url": "https://digitalcollections.nypl.org/items/dad79380-c60d-012f-1be4-58d385a7bc34"
   },
   "birds/cacatua-galerita.webp": {
     "source": "gould",
@@ -1751,6 +1767,14 @@
     "source": "levaillant",
     "url": "https://commons.wikimedia.org/wiki/File:Bessonornis_bicolor_-_1796-1808_-_Print_-_Iconographia_Zoologica_-_Special_Collections_University_of_Amsterdam_-_UBA01_IZ16300353.tif"
   },
+  "birds/dolichonyx-oryzivorus-2.webp": {
+    "source": "audubon",
+    "url": "https://commons.wikimedia.org/wiki/File:54_Rice_Bird.jpg"
+  },
+  "birds/dolichonyx-oryzivorus.webp": {
+    "source": "audubon",
+    "url": "https://commons.wikimedia.org/wiki/File:54_Rice_Bird.jpg"
+  },
   "birds/dryobates-minor-2.webp": {
     "source": "vonwright",
     "url": "https://commons.wikimedia.org/wiki/File:Bird_illustration_from_Svenska_F%C3%A5glar_(Swedish_Birds)_by_the_von_Wright_brothers_from_rawpixel%27s_original_edition_of_the_publication_00243.jpg"
@@ -1790,6 +1814,10 @@
   "birds/egretta-garzetta.webp": {
     "source": "gould",
     "url": "https://commons.wikimedia.org/wiki/File:GouldBirdsEuropeIVLittle_Egret.jpg"
+  },
+  "birds/egretta-thula.webp": {
+    "source": "dekay",
+    "url": "https://digitalcollections.nypl.org/items/dad79380-c60d-012f-1be4-58d385a7bc34"
   },
   "birds/elanoides-forficatus.webp": {
     "source": "gould",
@@ -2458,6 +2486,22 @@
   "birds/ichthyaetus-melanocephalus.webp": {
     "source": "gould",
     "url": "https://commons.wikimedia.org/wiki/File:GouldBirdsEuropeVBlack-headed_Gull.jpg"
+  },
+  "birds/icterus-spurius-2.webp": {
+    "source": "audubon",
+    "url": "https://commons.wikimedia.org/wiki/File:The_birds_of_America._(Livraison)_9,_Plate_42,_Orchard_Oriole,_Male_1_%26_2._adult,_3_%26_4._second_year,_5._Female_;_Plant_vulgo_honey_locust_-_estampe_-_Drawn_from_Nature_and_Published_by_John_J._Audubon..._-_btv1b53144087j.jpg"
+  },
+  "birds/icterus-spurius-3.webp": {
+    "source": "audubon",
+    "url": "https://commons.wikimedia.org/wiki/File:Orchard_Oriole,_or_Hang-nest._1._Male_adult._2._Young_Male._3._Female_%26_nest._(Honey_Locust.)_(NYPL_b13559627-108479).tiff"
+  },
+  "birds/icterus-spurius-4.webp": {
+    "source": "audubon",
+    "url": "https://commons.wikimedia.org/wiki/File:Orchard_Oriole,_or_Hang-nest._1._Male_adult._2._Young_Male._3._Female_%26_nest._(Honey_Locust.)_(NYPL_b13559627-108479).tiff"
+  },
+  "birds/icterus-spurius.webp": {
+    "source": "audubon",
+    "url": "https://commons.wikimedia.org/wiki/File:The_birds_of_America._(Livraison)_9,_Plate_42,_Orchard_Oriole,_Male_1_%26_2._adult,_3_%26_4._second_year,_5._Female_;_Plant_vulgo_honey_locust_-_estampe_-_Drawn_from_Nature_and_Published_by_John_J._Audubon..._-_btv1b53144087j.jpg"
   },
   "birds/icthyophaga-vocifer.webp": {
     "source": "levaillant",
@@ -3419,6 +3463,14 @@
     "source": "vonwright",
     "url": "https://commons.wikimedia.org/wiki/File:Bird_illustration_from_Svenska_F%C3%A5glar_(Swedish_Birds)_by_the_von_Wright_brothers_from_rawpixel%27s_original_edition_of_the_publication_00087.jpg"
   },
+  "birds/perisoreus-canadensis-2.webp": {
+    "source": "audubon",
+    "url": "https://archive.org/details/birdsofamericafr04audu"
+  },
+  "birds/perisoreus-canadensis.webp": {
+    "source": "keulemans",
+    "url": "https://archive.org/details/catalogueofbirds03brit"
+  },
   "birds/perisoreus-infaustus-2.webp": {
     "source": "vonwright",
     "url": "https://commons.wikimedia.org/wiki/File:Bird_illustration_from_Svenska_F%C3%A5glar_(Swedish_Birds)_by_the_von_Wright_brothers_from_rawpixel%27s_original_edition_of_the_publication_00007.jpg"
@@ -4211,6 +4263,18 @@
     "source": "fuertes",
     "url": "https://commons.wikimedia.org/wiki/File:The_warblers_of_North_America_(6309260554).jpg"
   },
+  "birds/setophaga-pensylvanica-2.webp": {
+    "source": "audubon",
+    "url": "https://commons.wikimedia.org/wiki/File:59_Chestnut-sided_Warbler.jpg"
+  },
+  "birds/setophaga-pensylvanica-3.webp": {
+    "source": "dekay",
+    "url": "https://commons.wikimedia.org/wiki/File:134._The_Chestnut-sided_Warbler_(Sylvicola_icterocephala)._135._The_Hemlock_Warbler_(Sylvicola_parus)._136._The_Pine_Finch_(Carduelis_pinus)_(NYPL_b14505696-113601).tiff"
+  },
+  "birds/setophaga-pensylvanica.webp": {
+    "source": "audubon",
+    "url": "https://commons.wikimedia.org/wiki/File:59_Chestnut-sided_Warbler.jpg"
+  },
   "birds/setophaga-petechia.webp": {
     "source": "audubon",
     "url": "https://www.audubon.org/art/birds-of-america/blue-eyed-yellow-warbler"
@@ -4378,6 +4442,10 @@
   "birds/spizella-passerina.webp": {
     "source": "fuertes",
     "url": "https://commons.wikimedia.org/wiki/File:Annual_report_(1912)_(18241716050).jpg"
+  },
+  "birds/spizella-pusilla.webp": {
+    "source": "fuertes",
+    "url": "https://archive.org/details/birdsofnewyork02eat/page/n710/mode/1up"
   },
   "birds/spizelloides-arborea-2.webp": {
     "source": "audubon",
