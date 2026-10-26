@@ -39,7 +39,7 @@ from pathlib import Path
 from typing import ClassVar
 from urllib.parse import parse_qs, urlencode, urlparse
 
-from .. import __version__, e6, modes, updates
+from .. import __version__, buttons, e6, modes, updates
 from ..languages import namer
 from ..panel import Panel, resolution_of, to_glass
 from ..render.paper import paper_tile
@@ -532,6 +532,18 @@ def make_handler(
                 if store.get().admin_locked:
                     store.update(session_secret=secrets.token_urlsafe(32))
                 self._redirect(LOGIN, _set_cookie("", 0))
+                return
+            # Open like the panel's own buttons, which anyone at the frame can press.
+            if route == "/press":
+                if not store.get().external_panel:
+                    self._send(404, b"not found", "text/plain")
+                    return
+                button = form.get("button", [""])[0]
+                if button not in buttons.LABELS:
+                    self._send(400, b"no such button", "text/plain")
+                    return
+                buttons.press(button, store, images_dir)
+                self._send(204, b"", "text/plain")
                 return
             # POST, not a query: the connection test carries a password.
             if route == "/detector":
