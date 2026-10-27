@@ -170,6 +170,33 @@ Without an Inky connected, the page is laid out for the external 13.3" panel,
 so **Rotation**, **Margin** and **Panel refresh** all apply to it. With an Inky
 connected, the external panel gets the Inky's page.
 
+### Inky example code
+
+[`examples/inky/main.py`](https://github.com/arnegiacomo/fugleramme/blob/main/examples/inky/main.py)
+is a Python program for a Pi with an Inky Impression, acting as a client of a
+remote Fugleramme. It checks `/frame.png` every 5 seconds and downloads it only
+if it has changed. If the frame can't be reached, the panel keeps showing its
+last page. The panel's buttons trigger the corresponding actions on the remote
+frame via the `/press` endpoint.
+
+If the frame requires sign-in for its admin page, `/press` requires the admin
+password too. It is sent with every press over plain HTTP, so if the frame is
+reachable from the internet, put HTTPS in front of it.
+
+Tick **External e-ink panel** on the frame's admin page, then on the Pi with
+the Inky, one command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/arnegiacomo/fugleramme/main/examples/inky/install.sh | bash
+```
+
+It asks for the frame's address and the admin password (leave it empty if auth is not enabled), enables SPI and I2C, and sets the client up as a systemd service. If it tells you to **reboot**, do it - an image should show on the display once the Pi is online. Rerun command again to update; your answers are kept.
+
+Logs: `journalctl -u fugleramme-client -f`
+
+Contributed by [MT Lewis](https://github.com/mtlewis). Tested on a 13.3"
+panel with a Pi Zero 2 W.
+
 ### EE02 example code
 
 [`examples/ee02/main.py`](https://github.com/arnegiacomo/fugleramme/blob/main/examples/ee02/main.py)
