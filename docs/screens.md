@@ -151,7 +151,7 @@ another device to render its content:
 
 - `/frame.png` returns the page as a six-color, dithered PNG in the panel's
   native orientation, which can be passed straight to the `inky` Python
-  library for the 13.3" Inky Impression.
+  library for an Inky Impression.
 - `/frame.e6` returns a custom image format that's convenient to use with the
   [Seeed Studio 13.3" Spectra 6 panel](https://www.seeedstudio.com/13-3inch-Six-Color-eInk-ePaper-Display-with-1200x1600-Pixels-p-6569.html)
   on a
@@ -166,9 +166,8 @@ under **Frame**. Fugleramme then serves the pages as
 `http://<host>.local:8080/frame.png` and `http://<host>.local:8080/frame.e6`,
 already dithered and rotated as necessary.
 
-Without an Inky connected, the page is laid out for the external 13.3" panel,
-so **Rotation**, **Margin** and **Panel refresh** all apply to it. With an Inky
-connected, the external panel gets the Inky's page.
+Choose your panel size under **External panel size**. **Rotation**, **Margin** and
+**Panel refresh** all apply to it. Until you choose one, it gets the same as the Inky connected to this frame, or a 13.3" page if there is none.
 
 ### Inky example code
 
@@ -183,8 +182,7 @@ If the frame requires sign-in for its admin page, `/press` requires the admin
 password too. It is sent with every press over plain HTTP, so if the frame is
 reachable from the internet, put HTTPS in front of it.
 
-Tick **External e-ink panel** on the frame's admin page, then on the Pi with
-the Inky, one command:
+Tick **External e-ink panel** on the frame's admin page and set **External panel size** to match your panel, then on the Pi with the Inky, one command:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/arnegiacomo/fugleramme/main/examples/inky/install.sh | bash

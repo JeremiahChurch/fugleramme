@@ -1,15 +1,16 @@
 """Fugleramme's page on an Inky Impression, from a Pi that does not run Fugleramme.
 
 It shows the page a Fugleramme on another machine draws. Enable "External
-e-ink panel" on that frame's admin page first.
+e-ink panel" on that frame's admin page first, with External panel size set
+to match this panel.
 Every POLL_SECONDS it asks the frame for /frame.png with the ETag of the last
 page; an unchanged page costs a 304 and nothing else. A new one goes on the
 glass once it reads and fits the panel. If the frame cannot be reached, the page
 on the glass stays.
 
 /frame.png is the frame's panel page as a six-colour picture, already turned to
-the glass, so set_image passes it through without dithering it again. Without
-an Inky of its own, the frame lays it out for the 13.3" Impression.
+the glass, so set_image passes it through without dithering it again. The
+frame lays it out at its External panel size.
 
 The panel's buttons trigger the corresponding actions on the remote frame via
 the /press endpoint. A frame that requires sign-in takes its admin password with
@@ -120,7 +121,10 @@ def main() -> None:
                 page = Image.open(io.BytesIO(body))
                 page.load()
                 if page.size != tuple(display.resolution):
-                    raise ValueError(f"the page is {page.size}, the panel {display.resolution}")
+                    raise ValueError(
+                        f"the page is {page.size}, the panel {display.resolution}"
+                        " - set External panel size on the frame's admin page to match"
+                    )
             except (OSError, ValueError) as error:
                 log.warning("Page refused: %s", error)
             else:

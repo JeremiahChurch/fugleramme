@@ -141,7 +141,7 @@ def make_handler(
     def glass(settings: Settings) -> tuple[int, int] | None:
         """The panel the page is laid out for, or None: nothing for the kiosk to lock to."""
         if panel or settings.external_panel:
-            return resolution_of(panel)
+            return resolution_of(panel, settings.external_panel_size)
         return None
 
     # Held across requests: an outage must not blank every viewer at once. Tied
@@ -393,6 +393,9 @@ def make_handler(
             frame = self._external_frame()
             if frame is None:
                 return
+            if sorted(frame[0].size) != sorted(e6.GLASS):
+                self._send(404, b'/frame.e6 is only for the 13.3" panel', "text/plain")
+                return
             poll = store.get().refresh_minutes
             if packed is None or packed[0] is not frame or packed[1] != poll:
                 packed = (frame, poll, e6.encode(*frame, poll))
@@ -442,7 +445,7 @@ def make_handler(
                 self._context(settings),
                 settings,
                 status,
-                resolution_of(panel),
+                resolution_of(panel, settings.external_panel_size),
                 panel is not None,
                 store.path.parent,
                 self._query().get("refused", [""])[0],

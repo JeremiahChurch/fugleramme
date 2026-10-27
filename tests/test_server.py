@@ -325,6 +325,25 @@ def test_with_the_e6_page_on_the_frame_is_laid_out_for_a_13_inch_panel(ext_eink_
     assert _size(_fetch(ext_eink_panel.base + "/preview.png")[2]) == (1440, 1080)
 
 
+def test_the_picked_panel_size_lays_out_the_page_and_only_the_13_inch_gets_e6(ext_eink_panel):
+    ext_eink_panel.store.update(external_panel_size="7.3")
+    assert _size(_fetch(ext_eink_panel.base + "/preview.png")[2]) == (1800, 1080)
+
+    ext_eink_panel.status.frame = (Image.new("P", (480, 800), 1), 90)
+    assert _size(_fetch(ext_eink_panel.base + "/frame.png")[2]) == (800, 480)
+    status, _headers, body = _fetch(ext_eink_panel.base + "/frame.e6")
+    assert status == 404 and b"13.3" in body
+
+
+def test_the_preview_follows_this_frame_s_inky_whatever_the_external_size(tmp_path, source):
+    store = SettingsStore(
+        tmp_path / SETTINGS, Settings(external_panel=True, external_panel_size="4")
+    )
+    panel = SimpleNamespace(resolution=(800, 480))
+    for base in _serve(tmp_path, source(count=40, seed=0), store=store, panel=panel):
+        assert _size(_fetch(base + "/preview.png")[2]) == (1800, 1080)
+
+
 def test_the_admin_form_switches_the_e6_page(frame, tmp_path):
     fields = {"checkboxes": "external_panel", "external_panel": "on"}
     _post(frame + "/admin", fields)

@@ -60,7 +60,7 @@ curl -fsSL "$RAW/main.py" -o "$DIR/main.py"
 [[ -f "$CONFIG" ]] || curl -fsSL "$RAW/config.py" -o "$CONFIG"
 
 echo "==> the frame"
-echo "   Enable \"External e-ink panel\" under Frame on its admin page."
+echo "   Enable \"External e-ink panel\" under Frame on its admin page and set External panel size to match this panel."
 url="${FRAME_URL:-$(ask "Frame address?" "$(current FRAME_URL)")}"
 password="${ADMIN_PASSWORD:-$(ask "Admin password, if it requires sign-in (Enter for none or unchanged):" "" secret)}"
 # Written by Python so a quote or a backslash in the password stays a valid literal.
