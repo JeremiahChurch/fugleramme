@@ -1943,6 +1943,10 @@
     "source": "gould",
     "url": "https://commons.wikimedia.org/wiki/File:GouldBirdsEuropeIIIReed_Bunting.jpg"
   },
+  "birds/empidonax-virescens.webp": {
+    "source": "audubon",
+    "url": "https://commons.wikimedia.org/wiki/File:144_Small_Green_Crested_Flycatcher.jpg"
+  },
   "birds/entomyzon-cyanotis.webp": {
     "source": "gould",
     "url": "https://digital.lib.ku.edu/ku-gould/14054"
@@ -2490,6 +2494,14 @@
   "birds/hydroprogne-caspia.webp": {
     "source": "gould",
     "url": "https://commons.wikimedia.org/wiki/File:GouldBirdsEuropeVCaspian_Tern.jpg"
+  },
+  "birds/hylocichla-mustelina-2.webp": {
+    "source": "audubon",
+    "url": "https://commons.wikimedia.org/wiki/File:73_Wood_Thrush.jpg"
+  },
+  "birds/hylocichla-mustelina.webp": {
+    "source": "audubon",
+    "url": "https://commons.wikimedia.org/wiki/File:73_Wood_Thrush.jpg"
   },
   "birds/ichthyaetus-audouinii.webp": {
     "source": "gould",
@@ -5046,6 +5058,10 @@
   "birds/vidua-macroura.webp": {
     "source": "gordon",
     "url": "https://commons.wikimedia.org/wiki/File:Vidua_macroura_(Dominikanerwida)_en_sprinkhaan,_RP-T-1914-17-282.jpg"
+  },
+  "birds/vireo-flavifrons.webp": {
+    "source": "audubon",
+    "url": "https://commons.wikimedia.org/wiki/File:119_Yellow-throated_Vireo.jpg"
   },
   "birds/vireo-griseus.webp": {
     "source": "audubon",
