@@ -1945,7 +1945,7 @@
   },
   "birds/empidonax-virescens.webp": {
     "source": "audubon",
-    "url": "https://www.audubon.org/art/birds-of-america/small-green-crested-flycatcher"
+    "url": "https://commons.wikimedia.org/wiki/File:144_Small_Green_Crested_Flycatcher.jpg"
   },
   "birds/entomyzon-cyanotis.webp": {
     "source": "gould",
@@ -2495,9 +2495,13 @@
     "source": "gould",
     "url": "https://commons.wikimedia.org/wiki/File:GouldBirdsEuropeVCaspian_Tern.jpg"
   },
+  "birds/hylocichla-mustelina-2.webp": {
+    "source": "audubon",
+    "url": "https://commons.wikimedia.org/wiki/File:73_Wood_Thrush.jpg"
+  },
   "birds/hylocichla-mustelina.webp": {
     "source": "audubon",
-    "url": "https://www.audubon.org/art/birds-of-america/wood-thrush"
+    "url": "https://commons.wikimedia.org/wiki/File:73_Wood_Thrush.jpg"
   },
   "birds/ichthyaetus-audouinii.webp": {
     "source": "gould",
@@ -4235,10 +4239,6 @@
     "source": "gould",
     "url": "https://commons.wikimedia.org/wiki/File:Bird_illustration_by_Elizabeth_Gould_for_Birds_of_Australia,_digitally_enhanced_from_rawpixel%27s_own_facsimile_book327.jpg"
   },
-  "birds/seiurus-aurocapilla.webp": {
-    "source": "audubon",
-    "url": "https://www.audubon.org/art/birds-of-america/golden-crowned-thrush"
-  },
   "birds/selasphorus-platycercus-2.webp": {
     "source": "swainson",
     "url": "https://commons.wikimedia.org/wiki/File:Selasphorus_platycercus_1841.jpg"
@@ -5061,7 +5061,7 @@
   },
   "birds/vireo-flavifrons.webp": {
     "source": "audubon",
-    "url": "https://www.audubon.org/art/birds-of-america/yellow-throated-vireo"
+    "url": "https://commons.wikimedia.org/wiki/File:119_Yellow-throated_Vireo.jpg"
   },
   "birds/vireo-griseus.webp": {
     "source": "audubon",
