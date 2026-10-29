@@ -26,8 +26,15 @@ Six ways to show them, easiest first.
 
 ## From another device
 
-Open `http://<host>.local:8080/` on a phone, tablet or laptop on the same
-network. This will work on any Raspberry pi os and installation method.
+Open `http://<host>.local:8080/` (or whichever address you have Fugleramme running on) on a phone, tablet or laptop on the same network.
+
+On a tablet, add the page to the home screen and it opens like an app, with its own icon and no address bar:
+
+- **iPad**: in Safari, tap Share, then **Add to Home Screen**.
+- **Android**: in Chrome, open the ⋮ menu, then **Add to home screen**.
+
+> [!NOTE]
+> The icon remembers the address it was saved with, so use the hostname, or give the machine running Fugleramme a static IP lease in your router.
 
 ## On HDMI, Raspberry Pi OS Desktop
 
@@ -139,37 +146,80 @@ Photos by Conrad Jackson, from
 
 ## On an external e-ink panel
 
-An e-ink panel driven by a microcontroller instead of a Pi (e.g.
-[Seeed Studio's 13.3" Spectra 6 panel](https://www.seeedstudio.com/13-3inch-Six-Color-eInk-ePaper-Display-with-1200x1600-Pixels-p-6569.html)
-on a
-[XIAO EE02](https://www.seeedstudio.com/XIAO-ePaper-Display-Board-ESP32-S3-EE02-p-6639.html))
-runs from a battery and can hang anywhere in Wi-Fi range, fetching the page
-from a Fugleramme running elsewhere. Enable **External e-ink panel** on the
-admin page, under **Frame**. Fugleramme then serves the panel's page, already
-dithered and packed for the panel, at `http://<host>.local:8080/frame.e6`, so
-the microcontroller does not have to decode an image. Without an Inky
-connected, the page is laid out for the external 13.3" panel, so **Rotation**,
-**Margin** and **Panel refresh** all apply to it. With an Inky connected, the
-external panel gets the Inky's page.
+Fugleramme provides image data endpoints which allow an e-ink panel driven by
+another device to render its content:
+
+- `/frame.png` returns the page as a six-color, dithered PNG in the panel's
+  native orientation, which can be passed straight to the `inky` Python
+  library for an Inky Impression.
+- `/frame.e6` returns a custom image format that's convenient to use with the
+  [Seeed Studio 13.3" Spectra 6 panel](https://www.seeedstudio.com/13-3inch-Six-Color-eInk-ePaper-Display-with-1200x1600-Pixels-p-6569.html)
+  on a
+  [XIAO EE02](https://www.seeedstudio.com/XIAO-ePaper-Display-Board-ESP32-S3-EE02-p-6639.html).
 
 > [!IMPORTANT]
-> Like the kiosk, `/frame.e6` needs no sign-in: anyone who can reach the
-> frame can read it.
+> Like the kiosk, `/frame.e6` and `/frame.png` need no sign-in: anyone who can
+> reach the frame can read them.
+
+To activate these endpoints, enable **External e-ink panel** on the admin page,
+under **Frame**. Fugleramme then serves the pages as
+`http://<host>.local:8080/frame.png` and `http://<host>.local:8080/frame.e6`,
+already dithered and rotated as necessary.
+
+Choose your panel size under **External panel size**. **Rotation**, **Margin** and
+**Panel refresh** all apply to it. Until you choose one, it gets the same as the Inky connected to this frame, or a 13.3" page if there is none.
+
+### Inky example code
+
+[`examples/inky/main.py`](https://github.com/arnegiacomo/fugleramme/blob/main/examples/inky/main.py)
+is a Python program for a Pi with an Inky Impression, acting as a client of a
+remote Fugleramme. It checks `/frame.png` every 5 seconds and downloads it only
+if it has changed. If the frame can't be reached, the panel keeps showing its
+last page. The panel's buttons trigger the corresponding actions on the remote
+frame via the `/press` endpoint.
+
+If the frame requires sign-in for its admin page, `/press` requires the admin
+password too. It is sent with every press over plain HTTP, so if the frame is
+reachable from the internet, put HTTPS in front of it.
+
+Tick **External e-ink panel** on the frame's admin page and set **External panel size** to match your panel, then on the Pi with the Inky, one command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/arnegiacomo/fugleramme/main/examples/inky/install.sh | bash
+```
+
+It asks for the frame's address and the admin password (leave it empty if auth is not enabled), enables SPI and I2C, and sets the client up as a systemd service. If it tells you to **reboot**, do it - an image should show on the display once the Pi is online. Rerun command again to update; your answers are kept.
+
+Logs: `journalctl -u fugleramme-client -f`
+
+Contributed by [MT Lewis](https://github.com/mtlewis). Tested on a 13.3"
+panel with a Pi Zero 2 W.
+
+### EE02 example code
 
 [`examples/ee02/main.py`](https://github.com/arnegiacomo/fugleramme/blob/main/examples/ee02/main.py)
-is a MicroPython program for the XIAO EE02. It wakes for the interval the
-page's header carries in its **Panel refresh** setting. So a 10 minute setting
-has it fetch every 10 minutes, and it never fetches more often than its own 5
-minute floor, even when **Panel refresh** is off. It downloads the page only
-if it has changed, and redraws the panel only once the download checks out. If
-something goes wrong, it writes an error message on the panel instead.
+is a MicroPython program for the XIAO EE02, which runs from a battery and can
+hang anywhere in Wi-Fi range. It wakes for the interval the page's header
+carries in its **Panel refresh** setting. So a 10 minute setting has it fetch
+every 10 minutes, and it never fetches more often than its own 5 minute floor,
+even when **Panel refresh** is off. It downloads the page only if it has
+changed, and redraws the panel only once the download checks out. If something
+goes wrong, it writes an error message on the panel instead.
 
 1. Install MicroPython on the board (e.g.
    [for the XIAO EE02](https://micropython.org/download/SEEED_XIAO_ESP32S3/))
-2. Set your Wi-Fi credentials and Fugleramme host at the top of `main.py`. A
+2. Set your Wi-Fi credentials and Fugleramme host in `config.py`. A
    frame served over HTTPS on port 443 is fetched over TLS.
-3. Upload `main.py` to the board (e.g. with
+3. Upload `main.py`, `boot.py` and `config.py` to the board (e.g. with
    [mpremote](https://docs.micropython.org/en/latest/reference/mpremote.html))
+
+`boot.py` runs on every boot before `main.py`. It is what lets the panel
+update its own program: set `FIRMWARE` in `config.py` to a URL serving the
+panel's latest program (as plain file, no sign-in or redirect), and the panel
+checks it on its wakes. A new program is staged, and after a restart it gets
+one trial wake; if the panel reaches the frame cleanly on it, the update is
+kept, otherwise the board goes back to the program it had before.
+Leave `FIRMWARE` at `None` and nothing is downloaded.
 
 Contributed by [Lorenz Schmid](https://github.com/lorenzschmid). Tested on
 a 13.3" panel with a XIAO EE02.

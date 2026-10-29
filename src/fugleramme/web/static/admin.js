@@ -3,13 +3,30 @@ const cfg = JSON.parse(document.getElementById("config").textContent);
 
 // A loopback detector is only loopback from the Pi, so a remote browser follows
 // this page's own host on its port; anything else is linked as configured.
-const birdnet = cfg.birdnetPort
-  ? location.protocol + "//" + location.hostname + ":" + cfg.birdnetPort
-  : cfg.birdnetUrl;
-document.getElementById("birdnet").href = birdnet + "/";
+const reach = (url, port) => port ? location.protocol + "//" + location.hostname + ":" + port : url;
+const birdnet = reach(cfg.birdnetUrl, cfg.birdnetPort);
+const detectorLink = document.getElementById("birdnet");  // several stations are a list instead
+if (detectorLink) detectorLink.href = birdnet + "/";
 
-// Not queryType=species: BirdNET-Go shows only today's for that.
+// Each detector's own favicon: BirdNET-Go's off its repository at a release tag,
+// so it shows whether or not one is running. Shown once loaded, so one that
+// cannot load - a browser offline - leaves no gap and no broken image.
+const LOGOS = {
+  "birdnet-go": "https://cdn.jsdelivr.net/gh/tphakala/birdnet-go@20261014/frontend/static/favicon-32x32.png",
+  birdweather: "https://app.birdweather.com/favicon-32x32.png",
+};
+function showLogos(root) {
+  for (const img of root.querySelectorAll("img.logo")) {
+    img.addEventListener("load", () => { img.hidden = false; });
+    img.src = LOGOS[img.dataset.kind];
+  }
+}
+showLogos(document);
+
+// Not queryType=species: BirdNET-Go shows only today's for that. A BirdWeather
+// station's page has no search to link into.
 function linkSpecies() {
+  if (cfg.kind === "birdweather") return;
   for (const a of document.querySelectorAll("#species a[data-species]")) {
     a.href = birdnet + "/ui/detections?search=" + encodeURIComponent(a.dataset.species);
   }
@@ -164,18 +181,171 @@ if (test) {
       const answer = await fetch("/detector", {method: "POST", body});
       if (signedOut(answer)) return;
       const result = await answer.json();
-      // "names" is a working detector holding back one thing, so it warns
-      // rather than fails.
-      outcome.className = {ok: "ok", names: "warn"}[result.state] || "bad";
+      // "names" is a working detector holding back one thing, and "partial"
+      // stations BirdWeather has only some of, so they warn rather than fail.
+      outcome.className = {ok: "ok", names: "warn", partial: "warn"}[result.state] || "bad";
       outcome.textContent = result.text;
       // The row is about the detector the frame reads from, so only a test of
       // the saved values speaks for it - edited ones may never be saved.
-      if (!changed.get(detectorForm)()) row.innerHTML = result.status;
+      if (!changed.get(detectorForm)()) {
+        row.innerHTML = result.status;
+        showLogos(row);  // a station's line carries its own
+      }
     } catch (e) {
       outcome.className = "bad";
       outcome.textContent = "the frame did not answer";
     }
     test.disabled = false;
+  });
+}
+
+// Each detector type has its own fields: BirdNET-Go's address and password,
+// BirdWeather's stations. Hidden, the other type's post nothing, so their stored
+// values stand for a switch back.
+for (const kind of document.querySelectorAll("input[name=detector_kind]")) {
+  kind.addEventListener("input", () => {  // before the form's own dirty check reads it
+    for (const field of document.querySelectorAll("#detector label[data-kind], #detector div[data-kind]")) {
+      reveal(field, field.dataset.kind === kind.value);
+    }
+  });
+}
+
+// A row per BirdWeather station. The last row's × empties it rather than leaving
+// nothing to type into, and Add stops at the most the frame reads.
+const stations = document.querySelector("#detector .stations");
+if (stations) {
+  const add = stations.querySelector("button.add");
+  const most = Number(stations.dataset.most);
+  const rows = () => stations.querySelectorAll(".station");
+  const sync = () => { add.hidden = rows().length >= most; };
+  const edited = () => {
+    sync();
+    stations.dispatchEvent(new Event("input", {bubbles: true}));  // for the form's dirty check
+  };
+  const append = (value) => {
+    const fresh = rows()[0].cloneNode(true);
+    fresh.querySelector("input").value = value;
+    add.before(fresh);
+    return fresh;
+  };
+  const drop = (row) => {
+    if (rows().length > 1) row.remove();
+    else row.querySelector("input").value = "";
+  };
+  stations.addEventListener("click", (e) => {
+    if (e.target.matches("button.remove")) {
+      drop(e.target.closest(".station"));
+    } else if (e.target === add) {
+      append("").querySelector("input").focus();
+    } else {
+      return;
+    }
+    edited();
+  });
+  sync();
+
+  // Find stations near a place, in a dialog: Photon suggests places as one
+  // types, fuzzily, and picking one lists the stations nearest it, each with an Add.
+  const near = stations.querySelector("dialog.near");
+  const field = near.querySelector("input");
+  const places = near.querySelector(".places");
+  const said = near.querySelector(".note");
+  const found = near.querySelector(".found");
+  stations.querySelector("button.find").addEventListener("click", () => near.showModal());
+  near.querySelector("button.close").addEventListener("click", () => near.close());
+  const tell = (text, tone = "") => {
+    said.className = "note " + tone;
+    said.textContent = text;
+  };
+  const cell = (tag, props) => Object.assign(document.createElement(tag), props);
+  // A row holds an ID or a station's page, which ends in it.
+  const holds = (id) => [...rows()].some((row) =>
+    row.querySelector("input").value.trim().replace(/\/+$/, "").split("/").pop() === id);
+  let listed = [];
+  const list = () => {
+    const empty = [...rows()].some((row) => !row.querySelector("input").value.trim());
+    const full = !empty && rows().length >= most;
+    const lines = listed.map((station) => {
+      const li = document.createElement("li");
+      const action = holds(station.id)
+        ? cell("em", {textContent: "added"})
+        : cell("button", {type: "button", textContent: "Add", disabled: full, onclick: () => {
+          const free = [...rows()].find((row) => !row.querySelector("input").value.trim());
+          if (free) free.querySelector("input").value = station.id;
+          else append(station.id);
+          edited();
+        }});
+      li.append(
+        cell("div", {className: "name", textContent: station.name, title: station.name}),
+        cell("div", {textContent: "#" + station.id}),
+        cell("div", {textContent: (station.km < 1 ? "<1" : Math.round(station.km)) + " km"}),
+        action,
+      );
+      return li;
+    });
+    if (full && !listed.every((station) => holds(station.id))) {
+      lines.push(cell("li", {className: "full",
+        textContent: `The frame reads at most ${most} stations: remove one to add another.`}));
+    }
+    found.replaceChildren(...lines);
+  };
+  stations.addEventListener("input", list);  // a row typed, added or removed
+  const pick = async (place) => {
+    places.replaceChildren();
+    field.value = place.label;
+    listed = [];
+    list();
+    tell("searching…");
+    try {
+      const answer = await fetch(`/stations?lat=${place.lat}&lon=${place.lon}`);
+      if (signedOut(answer)) return;
+      const result = await answer.json();
+      listed = result.stations;
+      list();
+      tell(result.text || `Stations nearest ${place.label}`, result.text ? "bad" : "");
+    } catch (e) {
+      tell("the frame did not answer", "bad");
+    }
+  };
+  let typed = 0;  // an answer to older typing is dropped
+  let pause;
+  const suggest = async () => {
+    const query = field.value.trim();
+    const mine = ++typed;
+    if (query.length < 3) {
+      places.replaceChildren();
+      return;
+    }
+    try {
+      const answer = await fetch("https://photon.komoot.io/api/?limit=5&q=" + encodeURIComponent(query));
+      const {features} = await answer.json();
+      if (mine !== typed) return;
+      tell(features.length ? "" : `no place called "${query}"`, "bad");
+      if (!features.length) {
+        places.replaceChildren();
+        return;
+      }
+      places.replaceChildren(...features.map(({properties: p, geometry}) => {
+        const label = [...new Set([p.name, p.city || p.county, p.state, p.country].filter(Boolean))]
+          .join(", ");
+        const [lon, lat] = geometry.coordinates;
+        const li = document.createElement("li");
+        li.append(cell("button", {type: "button", textContent: label,
+          onclick: () => pick({label, lat, lon})}));
+        return li;
+      }), cell("li", {className: "credit", textContent: "Places © OpenStreetMap, via Photon"}));
+    } catch (e) {
+      tell("the place search did not answer", "bad");
+    }
+  };
+  field.addEventListener("input", () => {
+    clearTimeout(pause);
+    pause = setTimeout(suggest, 300);  // a pause in typing, not every key
+  });
+  field.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();  // or the form saves
+    places.querySelector("button")?.click();
   });
 }
 
@@ -233,9 +403,9 @@ const mat = document.getElementById("mat");
 const caption = document.querySelector(".rendering");
 const captionHTML = caption.innerHTML;
 const form = document.querySelector("form.settings");
-// The panel the page is laid out for: an Inky, else the external one while it is ticked.
+// The panel the page is laid out for: an Inky, else the external one at its size while it is ticked.
 const external = form.querySelector("input[name=external_panel]");
-const glass = () => (cfg.detected || external.checked ? cfg.panel : null);
+const glass = () => (cfg.detected ? cfg.panel : external.checked ? cfg.panelSizes[form.external_panel_size.value] : null);
 // What the preview shows: the panel's page while there is a panel, else the
 // web view alone in the browser.
 const title = document.getElementById("preview-title");
@@ -306,7 +476,7 @@ function hungMargins() {
 
 function reveal(el, on) {
   el.hidden = !on;
-  el.querySelectorAll("input").forEach((c) => { c.disabled = !on; });
+  el.querySelectorAll("input, select").forEach((c) => { c.disabled = !on; });
 }
 function syncMargin() {
   const open = unlocked();
@@ -396,6 +566,7 @@ const syncSizes = () => {
 };
 // Without a panel there is nothing to turn or lock to.
 function syncPanel() {
+  reveal(document.getElementById("panel-size"), external.checked);
   dim(form.rotation.closest("label"), Boolean(glass()));
   dim(document.getElementById("web-lock"), Boolean(glass()));
   const hint = document.getElementById("lock-hint");

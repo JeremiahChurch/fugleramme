@@ -12,6 +12,10 @@ Everything else runs wherever Python or Docker does - a NAS, a homelab, an old l
 
 No. It is what makes this look like a picture frame instead of a screen, but fugleramme serves the same page over HTTP either way, in the shape of whatever shows it - a TV, an HDMI display straight from the Pi, any device on the network, or even your desktop wallpaper/screensaver. See [Screens](screens.md).
 
+## Do I need a mic?
+
+No. Without one, the frame can use a public BirdWeather station instead - your own or anyone's. See [Using BirdWeather instead of BirdNET-Go](operations.md#using-birdweather-instead-of-birdnet-go). If you have a mic, BirdNET-Go is still what I recommend.
+
 ## Which Raspberry Pi?
 
 A Pi 5 for the full build, because BirdNET-Go classifies around the clock. For a frame that only draws, any 40-pin Pi does - people are running a Pi 4 and a Pi Zero 2 W, and render time varies by model. See [Frame only](hardware.md#frame-only-external-or-existing-birdnet-go).
@@ -28,7 +32,7 @@ The panel is most of it. Here are some rough ranges (prices fluctuate a lot at t
 | --- | --- |
 | **Full 13.3"** - Pi 5, cooler, PSU, card, Inky Impression 13.3", Clippy EM272Z1 + sound card, frame | €380-450 / $420-500 |
 | **Full build, cheaper** - the same on a Pi 4, with an Inky Impression 7.3" and a USB lavalier mic | €170-220 / $190-240 |
-| **Frame only**, reading a BirdNET-Go you already run - Pi Zero 2 W, PSU, card, panel, frame | €110-270 / $120-300, depending on the panel |
+| **Frame only**, reading a BirdNET-Go you already run, or BirdWeather - Pi Zero 2 W, PSU, card, panel, frame | €110-270 / $120-300, depending on the panel |
 
 [Hardware](hardware.md#full-build-with-birdnet-go) has what I actually use, recommend and why.
 
@@ -44,7 +48,7 @@ If your local regulars never show up, open a [Missing bird](https://github.com/a
 
 ## Does it support my language?
 
-The species names come in any of BirdNET-Go's 40+ species languages. Fugleramme's UI currently only supports English. See [Languages](languages.md).
+The species names come in any of BirdNET-Go's 40+ species languages, or BirdWeather's if you use that. Fugleramme's UI currently only supports English. See [Languages](languages.md).
 
 ## Why isn't a bird I heard on the page?
 
@@ -62,7 +66,7 @@ Three possibilities, in the order worth checking:
   journalctl -u fugleramme-frame | grep "Not a bird"
   ```
 
-- **BirdNET-Go never recorded it.** Open its dashboard on `:8090`. If it isn't there either, it's a detection question rather than a frame one.
+- **BirdNET-Go never recorded it.** Open its dashboard on `:8090` (or the station's page on BirdWeather). If it isn't there either, it's a detection question rather than a frame one.
 
 ## I'm getting birds that can't possibly be here
 

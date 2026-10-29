@@ -5,8 +5,10 @@ BirdNET-Go restarts is worse than one that is a few minutes stale."""
 from __future__ import annotations
 
 import logging
+import re
 import signal
 from dataclasses import replace
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import numpy as np
@@ -70,6 +72,72 @@ def test_the_loop_holds_its_last_page_when_the_detector_goes_away(
     assert render.call_count == 1  # and did not draw an empty page over it
     assert len(set(ticks)) == 1  # and the file they would have written it to is untouched
     assert np.asarray(Image.open(config.output_path)).std() > 0.5  # birds, not bare paper
+
+
+def test_a_render_error_holds_the_page_instead_of_ending_the_service(
+    tmp_path, images, detector, monkeypatch, caplog
+):
+    """An unreadable plate raises from deep in the render. Ending the process would
+    have systemd restart it into the same file every few seconds."""
+    url, _httpd = detector(count=40, seed=0)
+    monkeypatch.setattr(api, "_TTL", 0)
+    monkeypatch.setattr(api, "_HOLD", 0)
+    config = Config(
+        images_dir=images,
+        detector_url=url,
+        output_path=tmp_path / "frame.png",
+        host="127.0.0.1",
+        port=0,
+        config_path=tmp_path / "settings.json",
+    )
+    caplog.set_level(logging.INFO, logger="fugleramme.service")
+    # Renders 2-4 fail, 1 and 5 are real. The rotation turns once, after the first page,
+    # to give render 2 a reason; renders 3 and 4 happen only because a failed render
+    # leaves last_key stale, which is the behaviour under test.
+    failing = {2: OSError("truncated plate"), 3: OSError("truncated plate"), 4: OSError("no font")}
+    real_render = modes.render  # patched below, so the wrapper must not look it up again
+    renders = 0
+    ticks = 0
+    on_glass: list[bytes] = []
+
+    def render(ctx):
+        nonlocal renders
+        renders += 1
+        if renders in failing:
+            raise failing[renders]
+        return real_render(ctx)
+
+    def sleep(_seconds):
+        nonlocal ticks
+        ticks += 1
+        on_glass.append(config.output_path.read_bytes())
+        if ticks == 5:
+            raise _Stop
+        if ticks == 1:
+            # The detector's address rides in as the default, as the loop's own store has it:
+            # saved without it, the file would send the loop to the built-in address.
+            SettingsStore(config.config_path, Settings(detector_url=url)).update(rotation=90)
+
+    with (
+        patch.object(service.updates, "available", return_value=None),
+        patch.object(service.modes, "render", render),
+        patch.object(service.time, "sleep", sleep),
+        pytest.raises(_Stop),
+    ):
+        service.run(config)
+
+    assert renders == 5  # every failing tick tried again, and the service never ended
+    assert len(set(on_glass[:4])) == 1  # the first page stayed through all three failures
+    assert on_glass[4] != on_glass[0]  # and the fifth tick drew a new one
+    messages = [r.getMessage() for r in caplog.records]
+    failed = [r for r in caplog.records if r.getMessage().startswith("Render failed")]
+    # Named by its cause, once per cause: the repeat is quiet, the new one is not.
+    assert len(failed) == 2
+    head = r"Render failed for collage at \d+x\d+, holding the current page \("
+    assert re.match(head, failed[0].getMessage())  # which mode and how big, for any error
+    assert failed[0].getMessage().endswith("(OSError: truncated plate)")
+    assert failed[1].getMessage().endswith("(OSError: no font)")
+    assert "Rendering recovered" in messages
 
 
 def test_the_configured_detector_is_rebuilt_only_when_the_settings_name_another(tmp_path, detector):
@@ -233,11 +301,20 @@ def test_no_floor_is_the_shipped_default(tmp_path):
     assert service._due(0, service.time.monotonic())
 
 
-def test_with_the_e6_page_on_the_loop_lays_out_and_hands_over_a_13_inch_page(
-    tmp_path, images, detector
+@pytest.mark.parametrize(
+    ("inky", "external_panel_size", "hung", "renders"),
+    [
+        (None, "", (1200, 1600), 1),  # nothing picked and no Inky: the 13.3"
+        (None, "7.3", (480, 800), 1),
+        ((800, 480), "", (480, 800), 1),  # nothing picked: the Inky's page, as before the pick
+        ((800, 480), "13.3", (1200, 1600), 2),  # a page of its own, the Inky keeping its own
+    ],
+)
+def test_with_the_e6_page_on_the_loop_hands_over_a_page_at_the_external_panel_s_size(
+    tmp_path, images, detector, inky, external_panel_size, hung, renders
 ):
-    """No Inky Impression connected, so the external e-ink panel is the glass: its own
-    edges, and the dithered page left where /frame.e6 packs it from."""
+    """The external e-ink panel takes its own size and edges, and the dithered page
+    is left where /frame.e6 packs it from. This frame's Inky still gets its own."""
     url, _httpd = detector(count=40, seed=0)
     config = Config(
         images_dir=images,
@@ -248,7 +325,13 @@ def test_with_the_e6_page_on_the_loop_lays_out_and_hands_over_a_13_inch_page(
         config_path=tmp_path / "settings.json",
     )
     store = SettingsStore(config.config_path, Settings(detector_url=url))
-    store.update(external_panel=True, rotation=90, margin_lock=False, margin_top=20)
+    store.update(
+        external_panel=True,
+        external_panel_size=external_panel_size,
+        rotation=90,
+        margin_lock=False,
+        margin_top=20,
+    )
     statuses: list[Status] = []
 
     def status() -> Status:
@@ -258,8 +341,19 @@ def test_with_the_e6_page_on_the_loop_lays_out_and_hands_over_a_13_inch_page(
     def sleep(_seconds):
         raise _Stop
 
+    pushed: list[tuple[int, int]] = []
+    panel = (
+        SimpleNamespace(
+            resolution=inky, driver="", push=lambda image, _rotation: pushed.append(image.size)
+        )
+        if inky
+        else None
+    )
+
     with (
         patch.object(service.updates, "available", return_value=None),
+        patch.object(service, "init_panel", return_value=panel),
+        patch.object(service.buttons, "watch"),
         patch.object(service, "Status", status),
         patch.object(service.modes, "render", side_effect=modes.render) as render,
         patch.object(service.time, "sleep", sleep),
@@ -267,10 +361,12 @@ def test_with_the_e6_page_on_the_loop_lays_out_and_hands_over_a_13_inch_page(
     ):
         service.run(config)
 
+    assert render.call_count == renders
     ctx = render.call_args.args[0]
     assert 0.2 in ctx.margin and len(set(ctx.margin)) == 2  # the one edge set on its own
     image, rotation = statuses[0].frame
-    assert (image.mode, image.size, rotation) == ("P", (1200, 1600), 90)
+    assert (image.mode, image.size, rotation) == ("P", hung, 90)
+    assert pushed == ([(480, 800)] if inky else [])
 
 
 @pytest.mark.parametrize("signal_code", [signal.SIGINT, signal.SIGTERM])

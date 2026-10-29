@@ -31,9 +31,18 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urljoin
 from urllib.request import HTTPCookieProcessor, HTTPRedirectHandler, Request, build_opener
 
+from .birdweather import BirdWeatherSource
 from .names import canonical, normalize
 from .settings import SettingsStore
-from .source import NEEDS_PASSWORD, Detection, Species, Unavailable
+from .source import (
+    BIRDNET_GO,
+    BIRDWEATHER,
+    NEEDS_PASSWORD,
+    Detection,
+    NoSuchStation,
+    Species,
+    Unavailable,
+)
 from .taxa import is_bird
 
 log = logging.getLogger(__name__)
@@ -97,7 +106,7 @@ def _local() -> tzinfo:
 def _aware(stamp: datetime) -> datetime:
     """A stamp with no offset is read in the frame's own zone, as the feed's wall
     clock is. BirdNET-Go before 20260712 stamped the summary bare (upstream #3793)."""
-    return stamp if stamp.tzinfo else stamp.replace(tzinfo=_local())
+    return stamp if stamp.tzinfo else stamp.astimezone()
 
 
 def _bare(value: str) -> bool:
@@ -137,8 +146,13 @@ def _ranked(counts: Iterable[tuple[str, int]]) -> list[tuple[str, int]]:
     return sorted(counts, key=lambda pair: (-pair[1], pair[0]))
 
 
-def _detection(row: dict, offset: tzinfo) -> Detection:
-    at = datetime.fromisoformat(f"{row['date']}T{row['time']}").replace(tzinfo=offset)
+def _detection(row: dict) -> Detection:
+    # BirdNET-Go since 20260321 (upstream #2048) stamps each row with its own
+    # offset, right across a daylight-saving change; older stations give a bare
+    # wall clock.
+    at = _time(row.get("timestamp") or "") or _aware(
+        datetime.fromisoformat(f"{row['date']}T{row['time']}")
+    )
     return Detection(
         id=int(row.get("id") or 0),
         detected_at=at,
@@ -198,6 +212,8 @@ def _merged(rows: Any) -> Any:
 
 class ApiSource:
     """A `source.Source` over one BirdNET-Go instance."""
+
+    kind = BIRDNET_GO
 
     def __init__(
         self,
@@ -324,6 +340,8 @@ class ApiSource:
                     raise entry[1]
                 return entry[1]
             started = time.monotonic()
+            # A window's dates roll daily, so its old keys are never asked again.
+            self._cache = {k: v for k, v in self._cache.items() if v[0] > started}
             try:
                 value: Any = fetch()
             except Unavailable as error:
@@ -335,13 +353,15 @@ class ApiSource:
 
     def _summary(self, start: str = "", end: str = "") -> list[dict]:
         def fetch() -> list[dict]:
-            rows = [
-                row
-                for row in _merged(
-                    self._get("/analytics/species/summary", start_date=start, end_date=end)
-                )
-                if self._is_bird(row["scientific_name"], row.get("common_name") or "")
-            ]
+            body = self._get("/analytics/species/summary", start_date=start, end_date=end)
+            try:
+                rows = [
+                    row
+                    for row in _merged(body)
+                    if self._is_bird(row["scientific_name"], row.get("common_name") or "")
+                ]
+            except (AttributeError, KeyError, TypeError) as error:
+                raise Unavailable(f"unreadable species summary: {error}") from error
             if not self._bare_clock and any(_bare(row.get("last_heard") or "") for row in rows):
                 self._bare_clock = True
                 log.warning(
@@ -357,16 +377,6 @@ class ApiSource:
     def _feed(self, limit: int) -> list[dict]:
         return self._cached(("recent", limit), lambda: self._get("/detections/recent", limit=limit))
 
-    def _offset(self) -> tzinfo:
-        """The station's own UTC offset. The feed gives a bare wall clock and
-        the summary's timestamps carry an offset, so it is read off there rather
-        than assuming the detector shares the frame's timezone."""
-        for row in self._summary():
-            stamp = _time(row.get("last_heard") or row.get("first_heard") or "")
-            if stamp and stamp.tzinfo:
-                return stamp.tzinfo
-        return _local()
-
     # -- source ------------------------------------------------------------
 
     def latest(self) -> Detection | None:
@@ -374,17 +384,16 @@ class ApiSource:
         return rows[0] if rows else None
 
     def recent(self, limit: int = 20) -> list[Detection]:
-        offset = self._offset()
         try:
             # Not in `_feed`: `_counted` reads the raw row count to spot a feed
             # that ran out before reaching its cutoff.
             return [
-                _detection(row, offset)
+                _detection(row)
                 for row in self._feed(limit)
                 if row.get("verified") != "false_positive"
                 and self._is_bird(row["scientificName"], row.get("commonName") or "")
             ]
-        except (KeyError, TypeError, ValueError) as error:
+        except (AttributeError, KeyError, TypeError, ValueError) as error:
             raise Unavailable(f"unreadable detections: {error}") from error
 
     def _counted(self, hours: float) -> list[tuple[str, int]] | None:
@@ -410,6 +419,14 @@ class ApiSource:
             for row in self._summary(*_window(hours))
             if _heard_since(row, since)
         )
+
+    def last_heard(self, hours: float = 24) -> list[str]:
+        since = datetime.now(UTC) - timedelta(hours=hours) if hours > 0 else None
+        rows = [row for row in self._summary(*_window(hours)) if _heard_since(row, since)]
+        newest = sorted(
+            rows, key=lambda row: (-_at(row.get("last_heard")).timestamp(), row["scientific_name"])
+        )
+        return [row["scientific_name"] for row in newest]
 
     def life_list(self) -> list[Species]:
         try:
@@ -445,30 +462,38 @@ class ApiSource:
 class Configured:
     """The detector the settings name, rebuilt when they name another one.
 
-    `ApiSource` binds its address and credentials at construction, so the render
-    loop, the HTTP server and `languages` hold this wrapper instead and a swap
-    reaches all three at once. Nothing may be called out to while the lock is
-    held: `languages` expires its own caches by station rather than being told.
+    A source binds its kind, address and credentials at construction, so the
+    render loop, the HTTP server and `languages` hold this wrapper instead and a
+    swap reaches all three at once. Nothing may be called out to while the lock
+    is held: `languages` expires its own caches by station rather than being told.
     """
 
     def __init__(self, store: SettingsStore, timeout: float = _TIMEOUT):
         self._store = store
         self._timeout = timeout
         self._lock = threading.Lock()
-        self._key: tuple[str, str, str] | None = None
-        self._source: ApiSource | None = None
+        self._key: tuple[str, str, str, str] | None = None
+        self._source: ApiSource | BirdWeatherSource | None = None
 
     @property
-    def source(self) -> ApiSource:
+    def source(self) -> ApiSource | BirdWeatherSource:
         settings = self._store.get()
-        key = (settings.detector_url, settings.detector_username, settings.detector_password)
+        kind, url = settings.detector_kind, settings.detector_address
+        key = (kind, url, settings.detector_username, settings.detector_password)
         with self._lock:
             if key == self._key and self._source is not None:
                 return self._source
             if self._key is not None:
-                log.info("Detector is now %s", key[0])
-            self._key, self._source = key, ApiSource(*key, timeout=self._timeout)
+                log.info("Detector is now %s", url)
+            self._key, self._source = key, self._build(*key)
             return self._source
+
+    def _build(
+        self, kind: str, url: str, username: str, password: str
+    ) -> ApiSource | BirdWeatherSource:
+        if kind == BIRDWEATHER:
+            return BirdWeatherSource(url, timeout=self._timeout)
+        return ApiSource(url, username, password, timeout=self._timeout)
 
     def latest(self) -> Detection | None:
         return self.source.latest()
@@ -478,6 +503,9 @@ class Configured:
 
     def species_since(self, hours: float = 24) -> list[tuple[str, int]]:
         return self.source.species_since(hours)
+
+    def last_heard(self, hours: float = 24) -> list[str]:
+        return self.source.last_heard(hours)
 
     def life_list(self) -> list[Species]:
         return self.source.life_list()
@@ -492,7 +520,25 @@ class Configured:
         headers: dict[str, str] | None = None,
         params: dict[str, Any] | None = None,
     ) -> tuple[int, dict[str, str], bytes]:
-        return self.source.request(path, method, headers, params)
+        """BirdNET-Go's own API, which `languages` reads a BirdNET-Go's names
+        from. A BirdWeather station has none: see `common_names`."""
+        source = self.source
+        if not isinstance(source, ApiSource):
+            raise Unavailable(f"{source.base_url} serves no BirdNET-Go API")
+        return source.request(path, method, headers, params)
+
+    def common_names(self) -> dict[str, dict[str, str]]:
+        """A BirdWeather station's names, which `languages` reads instead of
+        asking `request`."""
+        source = self.source
+        if not isinstance(source, BirdWeatherSource):
+            raise Unavailable(f"{source.base_url} names its birds through `request`")
+        return source.common_names()
+
+    @property
+    def kind(self) -> str:
+        """Which kind of detector this is, out of `source.DETECTOR_KINDS`."""
+        return self.source.kind
 
     @property
     def base_url(self) -> str:
@@ -520,9 +566,31 @@ def _reach(source: ApiSource, path: str, **params: Any) -> tuple[int, str]:
         return 0, str(error)
 
 
-def probe(url: str, username: str = "", password: str = "") -> tuple[str, str]:
+def _probe_station(url: str) -> tuple[str, str]:
+    """BirdWeather stations: "ok" with their names, "partial" when BirdWeather
+    has only some of them, "missing" when it has none, or "unreachable". A
+    detection is read as well as the names, since the detections are what the
+    frame reads."""
+    source = BirdWeatherSource(url, timeout=_TIMEOUT)
+    try:
+        about = source.about()
+        source.recent(1)
+    except NoSuchStation as error:
+        return "missing", str(error)
+    except Unavailable as error:
+        return "unreachable", str(error)
+    named = [
+        str(row.get("name") or id_) if row else f"{id_}: no such station"
+        for id_, row in about.items()
+    ]
+    return ("ok" if all(about.values()) else "partial"), ", ".join(named)
+
+
+def probe(
+    url: str, username: str = "", password: str = "", kind: str = BIRDNET_GO
+) -> tuple[str, str]:
     """The admin's connection test: (state, detail), state one of "ok", "auth",
-    "names" or "unreachable".
+    "names" or "unreachable" - or for BirdWeather stations, `_probe_station`'s.
 
     Two endpoints, because BirdNET-Go gates them differently. PrivateMode covers
     the whole API, but `/settings/*` sits behind authentication whenever any
@@ -533,6 +601,8 @@ def probe(url: str, username: str = "", password: str = "") -> tuple[str, str]:
 
     One source for both, so the session the first call logs in serves the second.
     """
+    if kind == BIRDWEATHER:
+        return _probe_station(url)
     refused = "credentials rejected" if password else NEEDS_PASSWORD
     source = ApiSource(url, username, password)
     status, failure = _reach(source, _DETECTIONS, limit=1)

@@ -19,9 +19,8 @@ from types import SimpleNamespace
 import pytest
 from PIL import Image
 
-from fugleramme import api
+from fugleramme import api, birdweather, fake
 from fugleramme.api import ApiSource
-from fugleramme.picks import Picks
 from fugleramme.settings import Settings, SettingsStore
 from fugleramme.status import Status
 from fugleramme.web import LOGIN, LOGOUT, admin, server
@@ -41,7 +40,6 @@ def _serve(tmp_path, source, store=None, panel=None, status=None):
         source,
         tmp_path / "images",
         store or SettingsStore(tmp_path / SETTINGS),
-        Picks(tmp_path / "artwork.json"),
         panel,
         status or Status(),
     )
@@ -295,6 +293,29 @@ def test_the_e6_page_is_open_like_the_kiosk(tmp_path, source):
         assert _fetch(base + "/frame.e6")[0] == 200
 
 
+def test_the_png_page_is_the_loop_s_frame_in_the_panel_s_native_orientation(ext_eink_panel):
+    """What a panel driven through inky pushes unrotated."""
+    ext_eink_panel.status.frame = (Image.new("P", (1200, 1600), 2), 90)
+    status, headers, body = _fetch(ext_eink_panel.base + "/frame.png")
+
+    image = Image.open(io.BytesIO(body))
+    assert status == 200 and headers["Content-Type"] == "image/png"
+    assert (image.mode, image.size) == ("P", (1600, 1200))
+
+
+def test_the_png_page_follows_the_e6_page_s_switch_and_first_render(ext_eink_panel):
+    assert _fetch(ext_eink_panel.base + "/frame.png")[0] == 503
+    ext_eink_panel.store.update(external_panel=False)
+    assert _fetch(ext_eink_panel.base + "/frame.png")[0] == 404
+
+
+def test_an_unchanged_png_page_revalidates_to_304(ext_eink_panel):
+    ext_eink_panel.status.frame = (_dithered(1), 0)
+    etag = _fetch(ext_eink_panel.base + "/frame.png")[1]["ETag"]
+    ext_eink_panel.store.update(refresh_minutes=30)  # in e6's header, not in a PNG
+    assert _fetch(ext_eink_panel.base + "/frame.png", headers={"If-None-Match": etag})[0] == 304
+
+
 def test_with_the_e6_page_on_the_frame_is_laid_out_for_a_13_inch_panel(ext_eink_panel):
     """No Inky Impression connected, but a panel all the same: its edges, and a preview
     in its shape."""
@@ -302,6 +323,25 @@ def test_with_the_e6_page_on_the_frame_is_laid_out_for_a_13_inch_panel(ext_eink_
     assert 'name="margin_top"' in page
     assert "not detected" in page  # the Inky row still tells the truth
     assert _size(_fetch(ext_eink_panel.base + "/preview.png")[2]) == (1440, 1080)
+
+
+def test_the_picked_panel_size_lays_out_the_page_and_only_the_13_inch_gets_e6(ext_eink_panel):
+    ext_eink_panel.store.update(external_panel_size="7.3")
+    assert _size(_fetch(ext_eink_panel.base + "/preview.png")[2]) == (1800, 1080)
+
+    ext_eink_panel.status.frame = (Image.new("P", (480, 800), 1), 90)
+    assert _size(_fetch(ext_eink_panel.base + "/frame.png")[2]) == (800, 480)
+    status, _headers, body = _fetch(ext_eink_panel.base + "/frame.e6")
+    assert status == 404 and b"13.3" in body
+
+
+def test_the_preview_follows_this_frame_s_inky_whatever_the_external_size(tmp_path, source):
+    store = SettingsStore(
+        tmp_path / SETTINGS, Settings(external_panel=True, external_panel_size="4")
+    )
+    panel = SimpleNamespace(resolution=(800, 480))
+    for base in _serve(tmp_path, source(count=40, seed=0), store=store, panel=panel):
+        assert _size(_fetch(base + "/preview.png")[2]) == (1800, 1080)
 
 
 def test_the_admin_form_switches_the_e6_page(frame, tmp_path):
@@ -324,6 +364,19 @@ def test_the_connection_test_answers_over_the_wire(frame):
     with urllib.request.urlopen(request, timeout=10) as response:
         answer = json.loads(response.read())
     assert answer["state"] == "unreachable"
+
+
+def test_the_search_answers_with_stations_or_why_there_are_none(frame, detector, monkeypatch):
+    url, _httpd = detector(birdweather=True)
+    monkeypatch.setattr(birdweather, "BIRDWEATHER_SITE", url)
+    _status, _headers, body = _fetch(frame + "/stations?lat=59.9&lon=10.7")
+    assert [station["id"] for station in json.loads(body)["stations"]] == [fake.STATION_ID]
+    _status, _headers, body = _fetch(frame + "/stations?lat=0&lon=0")
+    assert json.loads(body) == {"stations": [], "text": "No active stations within 400 km."}
+    monkeypatch.setattr(birdweather, "BIRDWEATHER_SITE", "http://127.0.0.1:1")
+    _status, _headers, body = _fetch(frame + "/stations?lat=0&lon=0")
+    assert json.loads(body)["text"].startswith("BirdWeather unreachable")
+    assert _fetch(frame + "/stations?lat=north")[0] == 400
 
 
 def test_the_kiosk_holds_its_last_page_when_the_detector_goes_away(tmp_path, detector, monkeypatch):
@@ -362,6 +415,44 @@ def test_an_emptied_field_clears_the_setting(frame, tmp_path):
     saved = post(detector_url="http://127.0.0.1:1", detector_username="bird")
     assert saved.detector_username == "bird"
     assert post(detector_url="http://127.0.0.1:1", detector_username="").detector_username == ""
+
+
+def test_a_station_typed_as_birdnet_go_s_address_is_refused(frame, tmp_path):
+    """Refused and said so, rather than saved into a frame that reads nothing."""
+    store = SettingsStore(tmp_path / SETTINGS)
+    station = "https://app.birdweather.com/stations/31086"
+    fields = {"detector_kind": "birdnet-go", "detector_url": station}
+
+    status, headers, _body = _post(frame + "/admin", fields)
+    assert (status, headers["Location"]) == (303, "/admin?refused=birdnet-go&stations=")
+    assert store.get().detector_url == Settings().detector_url
+
+    _status, _headers, page = _fetch(frame + headers["Location"])
+    assert b"Not saved. That is a BirdWeather station." in page
+
+
+def test_a_refused_station_is_named_on_the_page_it_comes_back_to(frame, tmp_path):
+    rows = [("detector_station", "31086"), ("detector_station", "nest box")]
+    status, headers, _body = _post(frame + "/admin", [("detector_kind", "birdweather"), *rows])
+    assert status == 303 and headers["Location"].startswith("/admin?refused=birdweather&")
+    assert SettingsStore(tmp_path / SETTINGS).get().detector_station == ""
+
+    _status, _headers, page = _fetch(frame + headers["Location"])
+    assert b"Not saved. &quot;nest box&quot; is not a BirdWeather station." in page
+
+
+def test_a_station_is_saved_from_its_id(frame, tmp_path):
+    store = SettingsStore(tmp_path / SETTINGS)
+    status, headers, _body = _post(
+        frame + "/admin", {"detector_kind": "birdweather", "detector_station": "31086"}
+    )
+    assert (status, headers["Location"]) == (303, "/admin")
+    saved = store.get()
+    assert (saved.detector_kind, saved.detector_station, saved.detector_url) == (
+        "birdweather",
+        "https://app.birdweather.com/stations/31086",
+        Settings().detector_url,  # BirdNET-Go's, kept for a switch back
+    )
 
 
 def test_a_detector_that_stays_away_is_reported_once(stranded, caplog):
@@ -403,7 +494,6 @@ def test_every_route_is_either_the_kiosk_or_behind_the_password(tmp_path, source
         source(),
         tmp_path,
         SettingsStore(tmp_path / SETTINGS),
-        Picks(tmp_path / "artwork.json"),
         None,
         Status(),
     )
@@ -413,8 +503,13 @@ def test_every_route_is_either_the_kiosk_or_behind_the_password(tmp_path, source
         "/index.html",
         "/admin.css",
         "/admin.js",
+        "/apple-touch-icon.png",
+        "/icon-512.png",
+        "/favicon.png",
+        "/manifest.webmanifest",
         "/collage.png",
         "/frame.e6",
+        "/frame.png",
         "/state",
         "/paper.png",
         "/health",
@@ -436,8 +531,25 @@ def test_a_password_sends_a_browser_to_the_login_page(locked):
 
 def test_a_password_leaves_the_kiosk_open(locked):
     """The kiosk is the product: a password must not shut strangers out of the birds."""
-    for route in ("/", "/collage.png", "/state", "/paper.png", "/admin.css", "/health"):
+    for route in (
+        "/",
+        "/collage.png",
+        "/state",
+        "/paper.png",
+        "/admin.css",
+        "/health",
+        "/manifest.webmanifest",
+        "/apple-touch-icon.png",
+        "/favicon.png",
+    ):
         assert _fetch(locked + route)[0] == 200
+
+
+def test_every_icon_in_the_manifest_has_its_declared_size(locked):
+    manifest = json.loads(_fetch(locked + "/manifest.webmanifest")[2])
+    for icon in manifest["icons"]:
+        width, height = map(int, icon["sizes"].split("x"))
+        assert _size(_fetch(locked + icon["src"])[2]) == (width, height)
 
 
 def test_signing_in_opens_the_admin_and_signing_out_shuts_it(locked):
@@ -720,9 +832,7 @@ def test_a_forged_address_cannot_grow_the_limiter_without_end(tmp_path, source, 
         tmp_path / SETTINGS,
         Settings(admin_password=PASSWORD, require_sign_in=True, behind_proxy=True),
     )
-    handler = server.make_handler(
-        source(), tmp_path, store, Picks(tmp_path / "artwork.json"), None, Status()
-    )
+    handler = server.make_handler(source(), tmp_path, store, None, Status())
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), handler)
     threading.Thread(target=lambda: httpd.serve_forever(poll_interval=0.01), daemon=True).start()
     try:
@@ -769,3 +879,49 @@ def test_a_signed_out_post_saves_nothing(locked, tmp_path):
 
     _post(locked + "/admin", {"mode": "latest"}, _signed_in(locked))
     assert SettingsStore(tmp_path / SETTINGS).get().mode == "latest"
+
+
+def test_a_press_from_another_machine_is_the_button_s_settings_write(ext_eink_panel):
+    assert _post(ext_eink_panel.base + "/press", {"button": "B"})[0] == 204
+    assert ext_eink_panel.store.get().show_names is False
+
+
+def test_a_press_names_a_button_the_panel_has(ext_eink_panel):
+    assert _post(ext_eink_panel.base + "/press", {"button": "E"})[0] == 400
+
+
+def test_a_press_is_not_there_until_the_external_panel_is_switched_on(frame):
+    assert _post(frame + "/press", {"button": "B"})[0] == 404
+
+
+@pytest.fixture
+def locked_panel(tmp_path, source):
+    store = SettingsStore(
+        tmp_path / SETTINGS,
+        Settings(admin_password=PASSWORD, require_sign_in=True, external_panel=True),
+    )
+    yield from _serve(tmp_path, source(count=40, seed=0), store=store)
+
+
+def test_a_press_on_a_locked_frame_takes_the_admin_password(locked_panel):
+    """A headless client cannot hold a browser session, so it sends the password."""
+    assert _post(locked_panel + "/press", {"button": "B"})[0] == 401
+    assert _post(locked_panel + "/press", {"button": "B", "password": "sparrow"})[0] == 401
+    assert _post(locked_panel + "/press", {"button": "B", "password": PASSWORD})[0] == 204
+
+
+def test_wrong_press_passwords_are_held_to_the_sign_in_limit(locked_panel):
+    """Otherwise /press would be a way to guess the admin password unthrottled."""
+    for _ in range(server.TRIES):
+        assert _post(locked_panel + "/press", {"button": "B", "password": "sparrow"})[0] == 401
+    status, headers, _body = _post(locked_panel + "/press", {"button": "B", "password": PASSWORD})
+    assert status == 429
+    assert headers["Retry-After"] == str(server.WINDOW)
+    assert _post(locked_panel + LOGIN, {"password": PASSWORD})[0] == 429
+
+
+def test_a_press_without_a_password_is_not_a_guess(locked_panel):
+    """A client nobody has given the password must not lock the owner out."""
+    for _ in range(server.TRIES):
+        assert _post(locked_panel + "/press", {"button": "B"})[0] == 401
+    assert _post(locked_panel + "/press", {"button": "B", "password": PASSWORD})[0] == 204

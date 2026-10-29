@@ -123,7 +123,7 @@ choose_detector() {
     # shellcheck source=/dev/null
     source "$REPO_DIR/frame.env"
   fi
-  local default=1 choice=""
+  local default=1 choice="" birdweather=0
   [[ $DETECTOR_MODE == external ]] && default=3
   if unattended; then
     choice=$default
@@ -133,6 +133,7 @@ choose_detector() {
      1) no - install it here, alongside the frame
      2) yes - it already runs on this machine
      3) yes - it runs on another machine
+     4) no - I'll use a BirdWeather station instead
 EOF
     read -rp "   choice [$default] " choice </dev/tty || choice=$default
   fi
@@ -141,6 +142,9 @@ EOF
        DETECTOR_URL="$(ask "its address" "${DETECTOR_URL:-http://127.0.0.1:8080}")" ;;
     3) DETECTOR_MODE=external
        DETECTOR_URL="$(ask "its address" "${DETECTOR_URL:-http://birdnet.local:8080}")" ;;
+    # The frame still wants an address; it is kept for a switch back to BirdNET-Go.
+    4) DETECTOR_MODE=external birdweather=1
+       DETECTOR_URL="${DETECTOR_URL:-http://birdnet.local:8080}" ;;
     *) DETECTOR_MODE=bundled ;;
   esac
 
@@ -150,7 +154,11 @@ EOF
     DETECTOR_URL="http://127.0.0.1:$BIRDNET_PORT"
   else
     DETECTOR_URL="${DETECTOR_URL%/}"
-    probe_detector "$DETECTOR_URL"
+    if [[ $birdweather == 1 ]]; then
+      echo "   pick the station on http://<this pi>:$FRAME_PORT/admin, Detector tab"
+    else
+      probe_detector "$DETECTOR_URL"
+    fi
     # A container from a previous bundled install keeps running on its own and
     # keeps detector/.env, which is what makes the self-update converge it.
     if [[ -f "$REPO_DIR/detector/.env" ]]; then

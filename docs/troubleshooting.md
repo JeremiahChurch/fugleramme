@@ -80,7 +80,7 @@ SSH keeps working - `10.12.194.1` is a directly connected route.
 
 ## Checking the connection to BirdNET-Go
 
-`fugleramme-check` tests that BirdNET-Go returns everything the frame needs:
+`fugleramme-check` tests that BirdNET-Go, or BirdWeather, returns everything the frame needs:
 
 ```bash
 ssh <user>@<host>.local
@@ -89,8 +89,8 @@ uv run fugleramme-check
 ```
 
 Each line says `ok` or `FAIL`, what came back, and how long it took. It uses the
-address and password saved on the admin page. Add `--detector http://<host>:<port>`
-(and `--password`) to try another without saving it. Put
+detector saved on the admin page. Add `--detector http://<host>:<port>`
+(and `--password`), or a station's page or ID (several separated by commas), to try another without saving it. Put
 `FUGLERAMME_LOG_LEVEL=DEBUG` in front to also see every request it makes.
 
 In the container:
@@ -104,7 +104,8 @@ docker compose exec fugleramme fugleramme-check --config /data/settings.json
 Run the [check](#checking-the-connection-to-birdnet-go) first. If nothing
 answers, check the address on the admin page's Detector tab -
 **Test connection** says whether it is reachable, needs credentials, or is fine.
-The password field is right below the address. If Fugleramme runs
+The password field is right below the address. For a BirdWeather station,
+check the ID and that the station is public. If Fugleramme runs
 BirdNET-Go for you, `docker ps` should show it. If it answers but finds no
 birds, that's BirdNET-Go's side - open its own page and check the mic.
 

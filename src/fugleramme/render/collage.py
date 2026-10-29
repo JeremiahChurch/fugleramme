@@ -16,9 +16,9 @@ the silhouette, so a name can never land on a neighbour or clip. As a numbered
 key, each bird gets a number there instead and the names are listed beside or
 below the birds.
 
-Nothing here rolls dice per render: a species holds its artwork for as long as
-it is in the window (picks.py) and the mirror is a hash of the name, so a bird
-is unaffected by which other birds are on the page, or by a restart.
+Nothing here rolls dice per render: a species' artwork is a function of the
+day (`names.image_for`) and the mirror is a hash of the name, so a bird is
+unaffected by which other birds are on the page, or by a restart.
 """
 
 from __future__ import annotations
@@ -37,7 +37,6 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from ..names import canonical, drawable_keys, image_for, normalize
-from ..picks import Picks
 from ..source import Source
 from . import fonts, packing
 from .page import (
@@ -50,7 +49,7 @@ from .page import (
     draw_mark,
     draw_perch,
     figures_mask,
-    flatten,
+    flat_mode,
     label_px,
     mark_room,
     stamp,
@@ -76,10 +75,12 @@ KEY_LIMIT = 40  # a key of more names than this no longer fits beside the birds
 RANK_MOST_HEARD = "heard"
 RANK_RAREST = "rarest"
 RANK_RAREST_EVER = "rarest_ever"
+RANK_LAST_HEARD = "last_heard"
 RANKINGS = {
     RANK_MOST_HEARD: "The most heard",
     RANK_RAREST: "The rarest in the window",
     RANK_RAREST_EVER: "The rarest all time",
+    RANK_LAST_HEARD: "The latest heard",
 }
 DEFAULT_RANKING = RANK_MOST_HEARD
 _ALPHA_CUTOFF = 24
@@ -722,7 +723,7 @@ def _draw_keyed(
     font = fonts.load(font_key, pad)
     ascent = font.getmetrics()[0]
     ax0, ay0, ax1, ay1 = (round(v * scale) for v in key.area)
-    mask = Image.new("L", (ax1 - ax0 + 2 * pad, ay1 - ay0 + 2 * pad), 0)
+    mask = Image.new(flat_mode(not textured), (ax1 - ax0 + 2 * pad, ay1 - ay0 + 2 * pad), 0)
     draw = ImageDraw.Draw(mask)
     for n, p in enumerate(order):
         col, row = divmod(n, key.rows)
@@ -736,9 +737,8 @@ def _draw_keyed(
             draw.text(at, line, font=face, fill=255, anchor="ls")
             if line != part:
                 draw_mark(mask, at[0] + face.getlength(line), at[1], face)
-    mask = mask if textured else flatten(mask)
     # Anchored by its ink to the page edge: the metrics miss the italic's overhang.
-    ink = mask.crop(mask.getbbox())
+    ink = mask.convert("L").crop(mask.getbbox())
     _, _, right, bottom = margin.window((w, h))
     if key.below:
         at = ((ax0 + ax1 - ink.width) // 2, bottom - ink.height)
@@ -756,7 +756,7 @@ def _rank(ranking: str):
     a page at its limit does not flicker between two equally-heard birds."""
     if ranking == RANK_MOST_HEARD:
         return lambda pair: (-pair[1], pair[0])
-    return lambda pair: (pair[1], pair[0])  # both rarest rankings
+    return lambda pair: (pair[1], pair[0])  # both rarest, and last heard
 
 
 def _by_species(counts: Iterable[tuple[str, int]]) -> dict[str, int]:
@@ -801,6 +801,9 @@ def selected_species(
         # A resident heard twice today is not a rarity; a first-timer is.
         ever = _by_species(source.species_since(0))  # 0 hours: the whole record
         counted = [(name, ever.get(name, n)) for name, n in counted]
+    if ranking == RANK_LAST_HEARD:
+        place = {name: i for i, name in enumerate(source.last_heard(hours))}
+        counted = [(name, place.get(name, len(place))) for name, _n in counted]
     lead = canonical(spotlight) if spotlight else None
     first = [name for name, _n in counted if name == lead]
     rest = [pair for pair in counted if pair[0] != lead]
@@ -812,7 +815,7 @@ def gather_entries(
     source: Source,
     images_dir: Path,
     style: str,
-    picks: Picks,
+    day: int,
     hours: float = 24,
     limit: int = NO_LIMIT,
     ranking: str = DEFAULT_RANKING,
@@ -821,7 +824,7 @@ def gather_entries(
     """The page's species paired with the artwork each is wearing. The None only
     stands for a file that vanished between `selected_species` and here."""
     return [
-        (name, image_for(name, images_dir, style, picks))
+        (name, image_for(name, images_dir, style, day))
         for name in selected_species(
             source, images_dir, style, hours, limit, ranking, spotlight=spotlight
         )

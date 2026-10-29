@@ -11,29 +11,32 @@ import re
 import pytest
 from PIL import features
 
-from fugleramme import languages, modes
-from fugleramme.config import BIRDNET_PORT
+from fugleramme import fake, languages, modes
+from fugleramme.birdweather import BirdWeatherSource
+from fugleramme.config import BIRDNET_PORT, DEFAULT_DETECTOR_URL
 from fugleramme.languages import namer
-from fugleramme.picks import Picks
-from fugleramme.settings import MARGIN_CEILING, Settings, SettingsStore
-from fugleramme.source import NEEDS_PASSWORD
+from fugleramme.settings import MARGIN_CEILING, Settings, SettingsStore, merged
+from fugleramme.source import BIRDNET_GO, BIRDWEATHER, NEEDS_PASSWORD
 from fugleramme.status import Status
 from fugleramme.web import STATIC_DIR, admin, server
 
 PANEL = (1600, 1200)
 
 
-def _page(tmp_path, source, names_dir=None, detected=True, **overrides) -> str:
+def _page(
+    tmp_path, source, names_dir=None, detected=True, refused="", stations="", **overrides
+) -> str:
     settings = Settings(**overrides)
     ctx = modes.context(
         source,
         tmp_path,
-        Picks(tmp_path / "artwork.json"),
         settings,
         namer("sci", "", tmp_path),
         settings.web_size(PANEL if detected else None),
     )
-    return admin.page(ctx, settings, Status(), PANEL, detected, names_dir or tmp_path)
+    return admin.page(
+        ctx, settings, Status(), PANEL, detected, names_dir or tmp_path, refused, stations
+    )
 
 
 def _config(page: str) -> dict:
@@ -43,7 +46,7 @@ def _config(page: str) -> dict:
 
 
 def test_the_page_renders_before_anything_has_written_to_the_data_dir(tmp_path, source):
-    # A fresh checkout has no detector/data: nothing has saved settings, picks or
+    # A fresh checkout has no detector/data: nothing has saved settings or
     # a dictionary yet, and the admin is where the frame is first reached (#43).
     assert "$" not in _page(tmp_path, source(), names_dir=tmp_path / "data")
 
@@ -69,7 +72,7 @@ def test_the_detector_tab_counts_every_bird_heard_without_art(tmp_path, source):
 
 def test_every_asset_the_page_links_is_one_the_server_serves(tmp_path, source):
     linked = set(re.findall(r'(?:href|src)="(/[^"?]*)', _page(tmp_path, source())))
-    assert linked == {"/", "/admin.css", "/admin.js"}
+    assert linked == {"/", "/admin.css", "/admin.js", "/favicon.png"}
     assert linked <= set(server.FILES)
 
 
@@ -321,9 +324,35 @@ def test_with_no_panel_the_lock_is_disabled_declaration_and_all(tmp_path, source
 
 
 def test_the_panel_has_a_title_over_its_outputs(tmp_path, source):
-    outputs = re.search(r'<div class="field" id="outputs">.*?</div>', _page(tmp_path, source()))
+    page = _page(tmp_path, source())
+    outputs = re.search(r'<div class="field" id="outputs">.*?</div>', page, re.DOTALL)
     assert outputs.group(0).startswith('<div class="field" id="outputs"><span>Outputs</span>')
     assert 'name="external_panel"' in outputs.group(0)
+
+
+def test_the_external_panel_size_is_offered_while_the_external_panel_is_ticked(tmp_path, source):
+    offered = (
+        '<label class="sub" id="panel-size"><small>External panel size '
+        f"{admin._hint(admin.PANEL_SIZE)}</small>"
+        '<select name="external_panel_size">'
+    )
+    page = _page(tmp_path, source(), detected=False, external_panel=True, external_panel_size="5.7")
+    assert offered in page
+    assert '<option value="5.7" selected>5.7" (600×448)</option>' in page
+    assert _config(page)["panelSizes"]["13.3"] == [1600, 1200]  # the preview follows the pick
+    assert offered in _page(tmp_path, source(), detected=True, external_panel=True)
+    page = _page(tmp_path, source(), external_panel=False)
+    assert (
+        'id="panel-size" hidden>' in page and '<select name="external_panel_size" disabled>' in page
+    )
+
+
+def test_following_the_inky_is_offered_only_while_there_is_one(tmp_path, source):
+    same = '<option value="" selected>Same as this frame\'s Inky</option>'
+    assert same in _page(tmp_path, source(), detected=True, external_panel=True)
+    page = _page(tmp_path, source(), detected=False, external_panel=True)
+    assert 'value=""' not in page.split('id="panel-size"')[1].split("</select>")[0]
+    assert '<option value="13.3" selected>' in page  # nothing picked, no Inky: the 13.3"
 
 
 def test_every_tab_has_the_pane_admin_js_shows(tmp_path, source):
@@ -369,6 +398,11 @@ def test_the_birdnet_link_only_substitutes_this_host_for_a_loopback_one(url, exp
     """A remote browser cannot follow the Pi's own 127.0.0.1, and must not have
     its own hostname put in front of a detector on another machine."""
     assert admin.birdnet_link(url) == expected
+
+
+def test_a_public_address_is_linked_as_configured_whatever_the_detector_address():
+    public = "https://example.org/birdnet"
+    assert admin.birdnet_link("http://127.0.0.1:8090", BIRDNET_GO, public) == (public, None)
 
 
 def test_the_page_carries_the_link_for_a_detector_on_another_machine(tmp_path, source, monkeypatch):
@@ -531,3 +565,361 @@ def test_the_typeface_warning_is_a_triangle_not_the_info_badge(tmp_path, source)
     warning = re.search(r'<span class="hint caution" id="face-note".*?</span>', page).group()
     assert "<svg" in warning  # the info badge is an empty hint
     assert "⚠" not in page  # a colour emoji on some systems
+
+
+# -- a BirdWeather station ----------------------------------------------------
+
+
+@pytest.fixture
+def station(detector):
+    """The fake station's page and a source over it."""
+
+    def start(**kwargs) -> tuple[str, BirdWeatherSource]:
+        url, _httpd = detector(birdweather=True, **kwargs)
+        page = f"{url}/stations/{fake.STATION_ID}"
+        return page, BirdWeatherSource(page)
+
+    return start
+
+
+@pytest.mark.parametrize(
+    ("typed", "saved"),
+    [
+        ("31086", "https://app.birdweather.com/stations/31086"),
+        (" 31086 ", "https://app.birdweather.com/stations/31086"),
+        (
+            "https://app.birdweather.com/stations/31086/",
+            "https://app.birdweather.com/stations/31086",
+        ),
+        (
+            "https://app.birdweather.com/stations/31086?period=day#top",
+            "https://app.birdweather.com/stations/31086",
+        ),
+    ],
+)
+def test_a_station_is_saved_as_its_page_however_it_is_typed(typed, saved):
+    changes = admin.form_changes({"detector_kind": [BIRDWEATHER], "detector_station": [typed]})
+    assert admin.refused(changes) == ""
+    assert merged(Settings(), **changes).detector_station == saved
+
+
+@pytest.mark.parametrize(
+    ("field", "typed", "kind"),
+    [
+        ("detector_url", "https://app.birdweather.com/stations/31086", BIRDNET_GO),
+        ("detector_url", "https://app.birdweather.com", BIRDNET_GO),
+        ("detector_url", "app.birdweather.com/stations/31086", BIRDNET_GO),
+        ("detector_url", "31086", BIRDNET_GO),  # an ID, not http://31086
+        ("detector_station", "http://127.0.0.1:8090", BIRDWEATHER),
+        ("detector_station", "https://app.birdweather.com", BIRDWEATHER),
+        ("detector_station", "not an address", BIRDWEATHER),
+    ],
+)
+def test_an_address_its_type_s_field_cannot_hold_is_refused(field, typed, kind):
+    assert admin.refused(admin.form_changes({field: [typed]})) == kind
+
+
+def test_the_station_rows_are_saved_as_one_list():
+    """Empty rows are dropped and a station typed twice is read once."""
+    rows = ["31086", "", " https://app.birdweather.com/stations/15982/ ", "31086"]
+    changes = admin.form_changes({"detector_kind": [BIRDWEATHER], "detector_station": rows})
+    assert admin.refused(changes) == ""
+    assert merged(Settings(), **changes).detector_station == (
+        "https://app.birdweather.com/stations/31086, https://app.birdweather.com/stations/15982"
+    )
+
+
+@pytest.mark.parametrize(
+    ("rows", "short"),
+    [
+        (["31086", "nest box"], "not a station"),
+        ([str(n) for n in range(1, 7)], "too many stations"),
+        (["31086", "http://127.0.0.1:8090/stations/1"], "stations on two sites"),
+    ],
+)
+def test_stations_the_frame_cannot_read_as_one_are_refused(rows, short):
+    changes = admin.form_changes({"detector_station": rows})
+    assert admin.refused(changes) == BIRDWEATHER
+    assert admin.refusal(BIRDWEATHER, str(changes["detector_station"]))[0] == short
+
+
+def test_a_save_without_the_detector_or_with_no_station_is_not_refused():
+    assert admin.refused(admin.form_changes({"mode": ["latest"]})) == ""
+    assert admin.refused(admin.form_changes({"detector_station": [""]})) == ""
+
+
+def test_switching_type_keeps_each_type_s_own_address(tmp_path):
+    """The other type's fields are disabled, so a save posts nothing for them."""
+    store = SettingsStore(tmp_path / "s.json")
+    store.update(detector_url="http://pi:8090", detector_password="hunter2")
+    page = "https://app.birdweather.com/stations/31086"
+
+    weather = store.update(
+        **admin.form_changes({"detector_kind": [BIRDWEATHER], "detector_station": ["31086"]})
+    )
+    assert weather.detector_address == page
+    assert (weather.detector_url, weather.detector_password) == ("http://pi:8090", "hunter2")
+
+    back = store.update(
+        **admin.form_changes(
+            {
+                "detector_kind": [BIRDNET_GO],
+                "detector_url": ["http://pi:8090"],
+                "detector_password": [admin.PASSWORD_SET],
+            }
+        )
+    )
+    assert back.detector_address == "http://pi:8090"
+    assert (back.detector_station, back.detector_password) == (page, "hunter2")
+
+
+def test_the_detector_tab_names_the_station_and_what_it_last_heard(tmp_path, station):
+    url, source = station()
+    page = _page(tmp_path, source, detector_kind=BIRDWEATHER, detector_station=url)
+
+    assert "$" not in page
+    row = re.search(r'<span id="detector-state">(.*?)</span></dd>', page).group(1)
+    ((*named, heard),) = _lines(row)
+    assert named == [LOGO, fake.STATION_NAME, "·", f"#{fake.STATION_ID}", "·"]
+    assert heard.startswith("latest detection ")
+    assert f'<a href="{url}">#{fake.STATION_ID}</a>' in row
+    assert "<h2>BirdWeather</h2>" in page
+    assert 'title="detection &amp; stats">BirdWeather</a>' in page  # the link carries no logo
+    assert "<dt>Detector(s)</dt><dd><span id=" in page  # each station's line has its own
+    blob = _config(page)
+    assert (blob["birdnetUrl"], blob["birdnetPort"], blob["kind"]) == (url, None, BIRDWEATHER)
+
+
+def _detector_form(page: str) -> str:
+    return re.search(r'<form class="block detector".*?</form>', page, re.DOTALL).group(0)
+
+
+def test_a_station_shows_its_own_field_and_keeps_birdnet_go_s(tmp_path, station):
+    url, source = station()
+    form = _detector_form(_page(tmp_path, source, detector_kind=BIRDWEATHER, detector_station=url))
+
+    assert '<input type="radio" name="detector_kind" value="birdweather" checked>' in form
+    assert f"{admin._logo(BIRDWEATHER)}BirdWeather station(s)</label>" in form
+    assert '<div class="field stations" data-kind="birdweather" data-most="5">' in form
+    assert "<span>Stations <small>(ID or address)</small></span>" in form
+    assert f'<input type="text" name="detector_station" value="{url}">' in form  # an ID is no URL
+    # Hidden and disabled, so a save posts nothing and the stored ones stand.
+    assert '<label data-kind="birdnet-go" hidden><span>Address' in form
+    assert (
+        f'<input disabled inputmode="url" type="text" name="detector_url"'
+        f' value="{DEFAULT_DETECTOR_URL}">'
+    ) in form
+    assert '<label data-kind="birdnet-go" hidden><span>Password' in form
+    assert '<input disabled type="password" name="detector_password"' in form
+
+
+def test_birdnet_go_s_detector_form_asks_for_a_url_and_a_password(tmp_path, source):
+    page = _page(tmp_path, source())
+    form = _detector_form(page)
+
+    assert '<input type="radio" name="detector_kind" value="birdnet-go" checked>' in form
+    assert f"{admin._logo(BIRDNET_GO)}BirdNET-Go</label>" in form
+    assert '<label data-kind="birdnet-go"><span>Address' in form
+    # Text, or the browser would refuse an address typed without http://.
+    assert '<input inputmode="url" type="text" name="detector_url"' in form
+    assert '<label data-kind="birdnet-go"><span>Password' in form
+    assert '<div class="field stations" data-kind="birdweather" data-most="5" hidden>' in form
+    assert '<input type="text" name="detector_station" value="" disabled>' in form
+    assert "<h2>BirdNET-Go</h2>" in page
+    assert 'class="note bad"' not in form
+
+
+def test_birdweather_s_page_is_linked_as_it_is_even_on_loopback():
+    """A station's page is on BirdWeather, not on the Pi's own port."""
+    url = "https://app.birdweather.com/stations/31086"
+    assert admin.birdnet_link(url, BIRDWEATHER) == (url, None)
+    assert admin.birdnet_link("", BIRDWEATHER) == ("https://app.birdweather.com", None)
+
+
+def test_birdweather_with_no_station_saved_says_so_without_asking(tmp_path, monkeypatch):
+    monkeypatch.setattr(admin.hostinfo, "stations", lambda url: pytest.fail("asked BirdWeather"))
+    page = _page(tmp_path, BirdWeatherSource(""), detector_kind=BIRDWEATHER)
+
+    assert "$" not in page
+    assert '<span id="detector-state"><span class="bad">no station saved</span></span>' in page
+    assert "<dd>no station saved</dd>" in page  # the last detection, beside the row
+
+
+def test_a_refused_save_says_it_was_not_saved(tmp_path, source):
+    assert "Not saved." not in _page(tmp_path, source())
+    page = _page(tmp_path, source(), refused=BIRDNET_GO)
+    assert "Not saved. That is a BirdWeather station. Choose BirdWeather" in page
+    page = _page(tmp_path, source(), refused=BIRDWEATHER, stations="31086, nest box")
+    assert "Not saved. &quot;nest box&quot; is not a BirdWeather station." in page
+    assert "https://app.birdweather.com/stations/&lt;ID&gt;" in page
+    page = _page(tmp_path, source(), refused=BIRDWEATHER, stations="1, 2, 3, 4, 5, 6")
+    assert "Not saved. The frame reads at most 5 stations." in page
+
+
+def test_a_refused_save_comes_back_on_the_type_it_was_refused_for(tmp_path, source):
+    """The note sits under the field to fix, which must be the one shown."""
+    form = _detector_form(_page(tmp_path, source(), refused=BIRDWEATHER, stations="nest box"))
+    assert '<input type="radio" name="detector_kind" value="birdweather" checked>' in form
+    assert re.search(r'</dialog></div><p class="note bad">', form)
+
+
+def test_a_missing_station_is_not_called_unreachable(tmp_path, station):
+    url, _source = station()
+    gone = url.replace(f"/stations/{fake.STATION_ID}", "/stations/404")
+    page = _page(
+        tmp_path, BirdWeatherSource(gone), detector_kind=BIRDWEATHER, detector_station=gone
+    )
+
+    row = re.search(r'<span id="detector-state">(.*?)</span></dd>', page).group(1)
+    assert _lines(row) == [[LOGO, "", "", "#404", "·", "no such station"]]
+    assert '<li class="problem">no such station. See' in page
+    assert "<dd>no such station</dd>" in page  # the last detection, beside the row
+
+
+def test_the_connection_test_tells_a_station_s_answers_apart(station):
+    url, _source = station()
+    settings = Settings(detector_kind=BIRDWEATHER, detector_station=url)
+
+    ok = admin.connection({}, settings)
+    assert (ok["state"], ok["text"]) == ("ok", f"connected · {fake.STATION_NAME}")
+    assert _lines(ok["status"])[0][:4] == [LOGO, fake.STATION_NAME, "·", f"#{fake.STATION_ID}"]
+
+    other = url.replace(f"/stations/{fake.STATION_ID}", "/stations/404")
+    missing = admin.connection({"detector_station": [other]}, settings)
+    assert missing["state"] == "missing"
+    assert missing["text"] == "BirdWeather has no station 404"
+    assert _lines(missing["status"]) == [[LOGO, "", "", "#404", "·", "no such station"]]
+
+    wrong = admin.connection({"detector_kind": [BIRDNET_GO], "detector_url": [url]}, settings)
+    assert wrong["state"] == "refused"
+    assert wrong["text"].startswith("That is a BirdWeather station.")
+    assert wrong["status"] == '<span class="bad">a BirdWeather station</span>'
+
+    unset = admin.connection({"detector_station": [""]}, settings)
+    assert (unset["state"], unset["text"]) == ("unset", "no station entered")
+
+
+def test_the_connection_test_takes_a_bare_station_id(monkeypatch):
+    """The test reads the form as Save would, ID and all."""
+    asked = []
+    monkeypatch.setattr(admin, "probe", lambda *args: asked.append(args) or ("unreachable", ""))
+    admin.connection({"detector_kind": [BIRDWEATHER], "detector_station": ["31086"]}, Settings())
+    assert asked == [("https://app.birdweather.com/stations/31086", "", "", BIRDWEATHER)]
+
+
+def test_the_connection_test_says_when_a_station_is_unreachable(station):
+    url, _source = station(down=True)
+    answer = admin.connection({}, Settings(detector_kind=BIRDWEATHER, detector_station=url))
+    assert answer["state"] == "unreachable"
+    assert answer["status"] == '<span class="bad">unreachable</span>'
+
+
+def test_the_station_row_asks_birdweather_at_most_once_a_minute(detector):
+    """Every admin load asks for the row, and BirdWeather is someone else's service."""
+    url, httpd = detector(birdweather=True)
+    page = f"{url}/stations/{fake.STATION_ID}"
+    state, about = admin.hostinfo.stations(page)
+    assert (state, about[fake.STATION_ID]["name"]) == ("ok", fake.STATION_NAME)
+
+    httpd.shutdown()
+    httpd.server_close()
+    assert admin.hostinfo.stations(page) == (state, about)  # held, not asked again
+    assert admin.hostinfo.stations(f"{url}/stations/2")[0] == "down"  # another list is
+
+
+def test_the_station_row_tells_a_missing_station_from_a_dead_one(detector):
+    url, _httpd = detector(birdweather=True)
+    assert admin.hostinfo.stations(f"{url}/stations/404") == ("ok", {"404": None})
+    assert admin.hostinfo.stations(url) == ("missing", {})  # names no station at all
+    assert admin.hostinfo.stations("http://127.0.0.1:1/stations/1") == ("down", {})
+
+
+# -- several BirdWeather stations ---------------------------------------------
+
+
+LOGO = "[logo]"
+
+
+def _lines(row: str) -> list[list[str]]:
+    """A Detector row of stations as text: logo, name, ·, #ID, · and latest
+    detection a line. No cell holds a span of its own."""
+    cells = re.findall(r"<span[^>]*>(.*?)</span>", row.removeprefix('<span class="stations">'))
+    text = [LOGO if cell.startswith("<img") else re.sub(r"<[^>]+>", "", cell) for cell in cells]
+    return [text[i : i + 6] for i in range(0, len(text), 6)]
+
+
+def _two(url: str, other: str = fake.OTHER_STATION_ID) -> str:
+    return f"{url}/stations/{fake.STATION_ID}, {url}/stations/{other}"
+
+
+def test_each_station_has_a_row_and_an_x(tmp_path, detector):
+    url, _httpd = detector(birdweather=True)
+    stations = _two(url)
+    form = _detector_form(
+        _page(
+            tmp_path,
+            BirdWeatherSource(stations),
+            detector_kind=BIRDWEATHER,
+            detector_station=stations,
+        )
+    )
+    for page in stations.split(", "):
+        assert (
+            f'<div class="station"><input type="text" name="detector_station" value="{page}">'
+            '<button type="button" class="remove" aria-label="Remove station">×</button></div>'
+        ) in form
+    assert form.count('class="station"') == 2
+
+
+def test_the_detector_row_has_a_line_per_station(tmp_path, detector):
+    url, _httpd = detector(birdweather=True)
+    stations = _two(url, "404")
+    page = _page(
+        tmp_path, BirdWeatherSource(stations), detector_kind=BIRDWEATHER, detector_station=stations
+    )
+    row = re.search(r'<span id="detector-state">(.*?)</span></dd>', page).group(1)
+    ok, missing = _lines(row)
+    assert ok[:4] == [LOGO, fake.STATION_NAME, "·", f"#{fake.STATION_ID}"]
+    assert missing == [LOGO, "", "", "#404", "·", "no such station"]
+    assert "no such station. See" not in page  # the other station still makes the page
+
+
+def test_several_stations_are_a_list_under_the_nav_link(tmp_path, detector):
+    url, _httpd = detector(birdweather=True)
+    stations = _two(url)
+    page = _page(
+        tmp_path, BirdWeatherSource(stations), detector_kind=BIRDWEATHER, detector_station=stations
+    )
+    assert 'id="birdnet"' not in page
+    assert 'popovertarget="stations"' in page
+    links = re.search(r'<div id="stations" popover>(.*?)</div>', page).group(1)
+    assert links == (
+        f'<a href="{url}/stations/{fake.STATION_ID}">{fake.STATION_NAME}</a>'
+        f'<a href="{url}/stations/{fake.OTHER_STATION_ID}">'
+        f"{fake.STATIONS[fake.OTHER_STATION_ID][0]}</a>"
+    )
+
+
+def test_the_connection_test_names_every_station(detector):
+    url, _httpd = detector(birdweather=True)
+    settings = Settings(detector_kind=BIRDWEATHER)
+    other = fake.STATIONS[fake.OTHER_STATION_ID][0]
+
+    both = admin.connection({"detector_station": _two(url).split(", ")}, settings)
+    assert (both["state"], both["text"]) == ("ok", f"connected · {fake.STATION_NAME}, {other}")
+    assert [line[1] for line in _lines(both["status"])] == [fake.STATION_NAME, other]
+
+    one = admin.connection({"detector_station": _two(url, "404").split(", ")}, settings)
+    assert (one["state"], one["text"]) == (
+        "partial",
+        f"connected · {fake.STATION_NAME}, 404: no such station",
+    )
+    assert _lines(one["status"])[1] == [LOGO, "", "", "#404", "·", "no such station"]
+
+
+def test_a_station_on_birdweather_is_shown_by_its_id(tmp_path, source):
+    """Its page is too long for the input, and the ID is what tells two apart."""
+    stations = "https://app.birdweather.com/stations/31086, http://127.0.0.1:8090/stations/1"
+    form = _detector_form(_page(tmp_path, source(), detector_station=stations))
+    assert 'name="detector_station" value="31086"' in form
+    assert 'name="detector_station" value="http://127.0.0.1:8090/stations/1"' in form

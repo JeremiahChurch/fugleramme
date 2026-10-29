@@ -10,15 +10,21 @@ import shutil
 import socket
 import time
 from pathlib import Path
+from typing import Any
 from urllib.error import HTTPError
 from urllib.request import urlopen
+
+from ..birdweather import BirdWeatherSource
+from ..source import NoSuchStation, Unavailable
 
 _ONLINE_TTL = 60
 # The row a user watches while fixing it, so cached only long enough to keep a
 # burst of reloads off the probe.
 _DETECTOR_TTL = 5
+_STATION_TIMEOUT = 5  # BirdWeather takes up to a couple of seconds to answer
 _online_cache: tuple[float, bool] | None = None
 _detector_cache: tuple[str, float, tuple[str, str]] | None = None
+_station: BirdWeatherSource | None = None
 
 
 def reachable(host: str, port: int) -> bool:
@@ -74,6 +80,23 @@ def _probe_detector(url: str) -> tuple[str, str]:
         return ("auth" if error.code in (401, 403) else "down"), ""
     except (OSError, ValueError):
         return "down", ""
+
+
+def stations(url: str) -> tuple[str, dict[str, dict[str, Any] | None]]:
+    """How BirdWeather answers for the stations `url` lists - "ok", "missing"
+    (`url` names none) or "down" - and how it describes each one, None for a
+    station it does not have (`BirdWeatherSource.about`). One source is kept
+    for the list, so BirdWeather is asked about each at most once a minute
+    however often the page loads."""
+    global _station
+    if _station is None or _station.base_url != url.rstrip("/"):
+        _station = BirdWeatherSource(url, timeout=_STATION_TIMEOUT)
+    try:
+        return "ok", _station.about()
+    except NoSuchStation:
+        return "missing", {}
+    except Unavailable:
+        return "down", {}
 
 
 def lan_address(container: bool = False) -> str:

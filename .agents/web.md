@@ -8,12 +8,22 @@ Covers the `web/` package.
 
 - A login page and a session cookie, never `WWW-Authenticate`. This is BirdNET-Go's shape: its "basic auth" is a password typed into a form in its own UI, and the browser's credential dialog appears nowhere in that product. A frame that popped one would not read as the same appliance.
 - Everything that must 401 for a signed-out admin is in `GATED`; add to it when the page learns to fetch something new. The static files are not in it on purpose - `admin.css` is what the login page is styled with. A browser (`Accept: text/html`) is redirected to the login page; anything else gets the 401, so a fetch does not land a login page in a JSON parser.
-- The kiosk side stays open whatever is set: the public demo reads `/collage.png` and `/state`, the container's healthcheck reads `/health`, and an external panel's board reads `/frame.e6`.
+- The kiosk side stays open whatever is set: the public demo reads `/collage.png` and `/state`, the container's healthcheck reads `/health`, and an external panel's board reads `/frame.e6` or `/frame.png`.
+- `/press` is the one thing a locked frame gates outside the admin, since a press changes settings. A headless client cannot hold a browser session, and a sign-out anywhere would rotate the secret and silently end it, so it posts the admin password with each press instead, in the form body as the login page does (`_press_refused`). A wrong one counts against the sign-in's limit, or `/press` would be an unthrottled way to guess the password; a missing one does not, so an unconfigured client cannot lock the owner out.
 - `Settings.admin_locked` is the whole gate: the switch on *and* a password saved. Either half alone is an open frame, so a switch flipped on before a password is typed cannot lock anyone out.
 - The cookie is signed with `session_secret` mixed with the password, so changing the password ends every session, and the secret is rotated on sign-out and on a password change - which is real revocation, unlike BirdNET-Go, whose access token outlives its own logout. No `Secure` flag: the frame is plain HTTP on a LAN and the cookie would never be sent.
 - `admin.form_changes` drops `session_secret` from every post and treats a password field that still starts with `PASSWORD_SET` as untouched; `admin.js` empties such a field on focus. Typing on the end of the bullets would otherwise save them as the password, a lockout.
 - `admin_password` is stored in the clear beside `detector_password` deliberately - `FUGLERAMME_ADMIN_PASSWORD` seeds a container, and a hand edit is how a locked-out Pi gets back in. BirdNET-Go stores its own the same way.
 - `SameSite=Lax` keeps the cookie off another site's POST, and `do_POST` refuses a `Sec-Fetch-Site: cross-site` request besides - which is what protects a frame with no password set at all. Comparing `Origin` to `Host` instead would lock out anyone running the frame behind an HTTPS proxy.
+
+## The Detector tab (`admin._detector_field`, `admin.refused`)
+
+- Each type keeps its own fields. The other type's are `hidden` and `disabled`, so a save posts nothing for them and their stored values stand for a switch back; `admin.js` swaps them before the form's dirty check reads it. Both are text inputs: a url input would refuse a bare station ID and a BirdNET-Go typed without a scheme.
+- An address typed into the wrong type's field is refused and nothing is saved, since settings would otherwise drop the station or save it as a BirdNET-Go. A refused save carries the stations across the redirect, so the note names the one it was refused for.
+- BirdWeather's stations are a row each, all posting `detector_station`, which `admin.form_changes` joins with commas the way settings hold them. `admin.js` adds and removes rows and fires `input`, since the dirty check would not see a removed row otherwise.
+- **Find stations…** is a `dialog` that only fills the rows. Its field has no `name`, so nothing of it posts. The places are Photon's, since Nominatim's usage policy forbids search-as-you-type.
+- Each station's line in the Detector row carries its own logo, so Test connection's answer brings logos `admin.js` has to load (`showLogos`).
+- The detectors' favicons are loaded by the browser at runtime (`admin._logo`): they are other projects' brand marks, so the repo holds no copy.
 
 ## The web pages are files (`web/static/`)
 

@@ -47,6 +47,7 @@ A busy installation can hear over thirty species in a day, and thirty birds on o
 | The most heard | Most detections within a window |
 | The rarest in the window | Least detections within a window |
 | The rarest all time | Least detections ever recorded |
+| The latest heard | The species heard most recently |
 
 **Show all** means **all of them**. A long lookback at a busy station is yours to bound - past forty or so
 the birds get small and the labels crowd (but at least you get a cool mosaic!).
@@ -78,7 +79,7 @@ packed around it. Default is **off**.
 
 **Show species names** turns the labels on and off, same as **B** on the panel.
 
-Names come from BirdNET-Go. Pick a **primary language** and optionally a second,
+Names come from BirdNET-Go or BirdWeather. Pick a **primary language** and optionally a second,
 which stacks underneath in parentheses. Which languages are supported, and how they
 are drawn, is in [Languages](languages.md).
 

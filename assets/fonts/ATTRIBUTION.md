@@ -43,5 +43,5 @@ covers.
 
 `tools/vendor_fonts.py` fetches them from a pinned commit. Noto Sans CJK is
 modified: it is subset to the characters in BirdNET v2.4's Chinese, Japanese and
-Korean labels, the dates the frame writes in those languages, and printable
-ASCII. The others are unmodified.
+Korean labels and BirdWeather's names for every bird in those languages, the
+dates the frame writes in them, and printable ASCII. The others are unmodified.

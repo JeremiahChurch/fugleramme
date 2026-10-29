@@ -12,7 +12,13 @@ from dataclasses import replace
 import pytest
 from PIL import Image, ImageDraw
 
-from fugleramme.config import DEFAULT_DETECTOR_URL, FALLBACK_PANEL_RESOLUTION, WEB_HEIGHTS
+from fugleramme.config import (
+    DEFAULT_DETECTOR_URL,
+    DEFAULT_PANEL_SIZE,
+    PANEL_SIZES,
+    SAME_AS_INKY,
+    WEB_HEIGHTS,
+)
 from fugleramme.languages import NONE, SCIENTIFIC
 from fugleramme.panel import _TRANSPOSE
 from fugleramme.render.fonts import DEFAULT_FONT, DEFAULT_LABEL_SIZE
@@ -27,6 +33,7 @@ from fugleramme.settings import (
     from_env,
     lookback_order,
 )
+from fugleramme.source import BIRDNET_GO, BIRDWEATHER
 
 
 def test_defaults_when_file_absent(tmp_path):
@@ -280,7 +287,7 @@ def test_a_panel_less_kiosk_defaults_to_the_fallback_panel_s_page(tmp_path, reso
     path = tmp_path / "settings.json"
     path.write_text(json.dumps({"web_resolution": resolution, "rotation": rotation}))
     settings = SettingsStore(path).get()
-    assert settings.web_size(None) == settings.web_size(FALLBACK_PANEL_RESOLUTION)
+    assert settings.web_size(None) == settings.web_size(PANEL_SIZES[DEFAULT_PANEL_SIZE])
 
 
 def test_the_kiosk_shape_settings_fall_back_and_arrive_as_form_strings(tmp_path):
@@ -334,9 +341,63 @@ def test_the_detector_url_is_kept_by_shape(tmp_path):
     assert SettingsStore(path).update(detector_url="https://pi.local:8090/").detector_url == (
         "https://pi.local:8090"  # the trailing slash goes, so paths join cleanly
     )
-    for bad in ("pi.local:8090", "ftp://pi", "", 8090):
+    # No scheme is plain HTTP, which a BirdNET-Go on a LAN serves; no port is added.
+    for typed in ("pi.local:8090", " pi.local:8090/"):
+        assert SettingsStore(path).update(detector_url=typed).detector_url == (
+            "http://pi.local:8090"
+        )
+    assert SettingsStore(path).update(detector_url="pi.local").detector_url == "http://pi.local"
+    for bad in ("ftp://pi", "", "pi local", 8090):
         path.write_text(json.dumps({"detector_url": bad}))
         assert SettingsStore(path).get().detector_url == DEFAULT_DETECTOR_URL
+
+
+def test_a_file_from_before_birdweather_reads_birdnet_go(tmp_path):
+    """An update keeps the Pi's settings.json, which names no kind."""
+    path = tmp_path / "settings.json"
+    path.write_text(json.dumps({"detector_url": "http://pi.local:8090"}))
+    old = SettingsStore(path).get()
+    assert (old.detector_kind, old.detector_station) == (BIRDNET_GO, "")
+    assert old.detector_address == "http://pi.local:8090"
+    for bad in ("BirdWeather", "", 3, None):
+        path.write_text(json.dumps({"detector_kind": bad}))
+        assert SettingsStore(path).get().detector_kind == BIRDNET_GO
+    assert SettingsStore(path).update(detector_kind=BIRDWEATHER).detector_kind == BIRDWEATHER
+
+
+def test_a_station_is_kept_beside_birdnet_go_s_address(tmp_path):
+    """Each kind has its own address; the kind picks which one is read."""
+    path = tmp_path / "settings.json"
+    page = "https://app.birdweather.com/stations/31086"
+    store = SettingsStore(path)
+    saved = store.update(detector_kind=BIRDWEATHER, detector_station="31086")
+    assert (saved.detector_station, saved.detector_address) == (page, page)
+    assert saved.detector_url == DEFAULT_DETECTOR_URL
+    assert store.update(detector_kind=BIRDNET_GO).detector_address == DEFAULT_DETECTOR_URL
+    assert store.update(detector_station=f"{page}/?period=day").detector_station == page
+    assert store.update(detector_station="").detector_station == ""  # no station yet
+    for bad in ("http://pi.local:8090", "stations/31086", 31086):
+        path.write_text(json.dumps({"detector_station": bad}))
+        assert SettingsStore(path).get().detector_station == ""
+
+
+def test_several_stations_are_one_list_and_one_from_before_is_as_it_was(tmp_path):
+    """An update keeps settings.json, so a station saved before several could be
+    read must come back exactly as it was saved."""
+    path = tmp_path / "settings.json"
+    one = "https://app.birdweather.com/stations/31086"
+    path.write_text(json.dumps({"detector_kind": BIRDWEATHER, "detector_station": one}))
+    assert SettingsStore(path).get().detector_address == one
+
+    two = f"{one}, https://app.birdweather.com/stations/15982"
+    assert SettingsStore(path).update(detector_station="31086,15982").detector_station == two
+    for bad in (
+        ",".join(str(n) for n in range(1, 7)),  # more than the frame reads
+        "31086, http://127.0.0.1:8090/stations/1",  # asked as one, so on one site
+        "31086, http://pi.local:8090",
+    ):
+        path.write_text(json.dumps({"detector_station": bad}))
+        assert SettingsStore(path).get().detector_station == ""
 
 
 def test_a_launch_default_only_fills_in_what_the_file_does_not_say(tmp_path):
@@ -366,7 +427,7 @@ def test_detector_connection_round_trips(tmp_path):
 
 def test_a_detector_url_that_is_not_one_falls_back(tmp_path):
     path = tmp_path / "s.json"
-    path.write_text(json.dumps({"detector_url": "birdnet.local", "detector_username": 7}))
+    path.write_text(json.dumps({"detector_url": "ftp://birdnet.local", "detector_username": 7}))
     settings = SettingsStore(path).get()
     assert settings.detector_url == DEFAULT_DETECTOR_URL
     assert settings.detector_username == ""
@@ -403,10 +464,18 @@ def test_the_environment_seeds_every_field_of_settings(monkeypatch):
     assert seeded.detector_url == "http://birdnet.local:8080"  # coerced like the file is
 
 
+def test_the_environment_seeds_a_station_beside_birdnet_go(monkeypatch):
+    monkeypatch.setenv("FUGLERAMME_DETECTOR_KIND", "birdweather")
+    monkeypatch.setenv("FUGLERAMME_DETECTOR_STATION", "31086")
+    seeded = from_env()
+    assert seeded.detector_address == "https://app.birdweather.com/stations/31086"
+    assert seeded.detector_url == DEFAULT_DETECTOR_URL
+
+
 def test_an_unset_or_unusable_variable_leaves_the_default(monkeypatch):
     monkeypatch.delenv("FUGLERAMME_ROTATION", raising=False)
     monkeypatch.setenv("FUGLERAMME_MODE", "not-a-mode")
-    monkeypatch.setenv("FUGLERAMME_DETECTOR_URL", "birdnet.local")
+    monkeypatch.setenv("FUGLERAMME_DETECTOR_URL", "ftp://birdnet.local")
     seeded = from_env()
     assert seeded.rotation == Settings().rotation
     assert seeded.mode == Settings().mode
@@ -433,6 +502,19 @@ def test_the_external_panel_is_off_until_seeded_or_saved(tmp_path, monkeypatch):
     assert SettingsStore(path, from_env()).get().external_panel is False
     path.write_text(json.dumps({"external_panel": "nonsense"}))
     assert SettingsStore(path, Settings()).get().external_panel is False
+
+
+def test_the_panel_size_follows_the_inky_until_another_is_saved(tmp_path):
+    """Following the Inky, else the 13.3", is what the external panel got before
+    there was a choice."""
+    path = tmp_path / "s.json"
+    assert SettingsStore(path).get().external_panel_size == SAME_AS_INKY
+
+    path.write_text(json.dumps({"external_panel_size": "7.3"}))
+    assert SettingsStore(path).get().external_panel_size == "7.3"
+    for nonsense in ("8", "1600x1200", None, ["13.3"]):
+        path.write_text(json.dumps({"external_panel_size": nonsense}))
+        assert SettingsStore(path).get().external_panel_size == SAME_AS_INKY
 
 
 def test_a_seeded_rotation_never_turns_a_page_the_file_holds_flat(tmp_path, monkeypatch):
@@ -485,3 +567,12 @@ def test_an_admin_password_is_kept_exactly_as_typed(tmp_path):
     assert store.update(admin_password=" wren house ").admin_password == " wren house "
     assert SettingsStore(path).get().admin_password == " wren house "
     assert store.update(admin_password=7).admin_password == ""  # still has to be a str
+
+
+def test_the_public_address_is_kept_by_shape_and_cleared_by_emptying(tmp_path):
+    path = tmp_path / "settings.json"
+    store = SettingsStore(path)
+    assert store.get().detector_public_url == ""
+    saved = store.update(detector_public_url="https://example.org/birdnet/")
+    assert saved.detector_public_url == "https://example.org/birdnet"
+    assert store.update(detector_public_url="").detector_public_url == ""

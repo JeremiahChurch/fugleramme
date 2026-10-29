@@ -21,7 +21,6 @@ INK = (30, 30, 30)
 PANEL_INK = (0, 0, 0)  # exact palette black: the dither leaves it alone
 
 MIN_LABEL_PX = 11
-_CUTOFF = 110  # alpha threshold when flattening text for the panel
 _LINE_SPACING = 0.1  # extra leading between a label's two lines, em
 _PERCH_FILL = 0.7  # of the page's short side
 # Ends a label's first line for a bird new to the station. Drawn as the face's
@@ -64,7 +63,11 @@ def label_px(width: int, height: int, size_key: str) -> int:
 
 
 def trim(path: Path) -> Image.Image:
-    img = Image.open(path).convert("RGBA")
+    try:
+        img = Image.open(path).convert("RGBA")
+    except Exception as exc:
+        exc.add_note(f"while opening {path}")  # Pillow's "image file is truncated" omits it
+        raise
     bbox = img.getchannel("A").getbbox()  # trim by alpha, not by RGB
     return img.crop(bbox) if bbox else img
 
@@ -82,16 +85,16 @@ def _cap(font: ImageFont.FreeTypeFont) -> float:
     return -font.getbbox("H", anchor="ls")[1]
 
 
-def _mark(font: ImageFont.FreeTypeFont) -> tuple[Image.Image, int]:
-    """The face's asterisk at `_MARK_SCALE`, trimmed to its ink, and how far its
-    middle sits past the end of the text."""
-    mark = Image.new("L", (1, 1))
+def _mark(font: ImageFont.FreeTypeFont, mode: str) -> tuple[Image.Image, int]:
+    """The face's asterisk at `_MARK_SCALE` in `mode` (`flat_mode`), trimmed to its
+    ink, and how far its middle sits past the end of the text."""
+    mark = Image.new(mode, (1, 1))
     big = fonts.resized(font, round(font.size * _MARK_SCALE))
     x0, y0, x1, y1 = ImageDraw.Draw(mark).textbbox((0, 0), "*", font=big)
-    mark = Image.new("L", (math.ceil(x1 - x0) + 2, math.ceil(y1 - y0) + 2), 0)
+    mark = Image.new(mode, (math.ceil(x1 - x0) + 2, math.ceil(y1 - y0) + 2), 0)
     ImageDraw.Draw(mark).text((1 - x0, 1 - y0), "*", font=big, fill=255)
     ink = mark.crop(mark.getbbox())
-    mark = Image.new("L", (ink.width + 2, ink.height + 2), 0)  # +1px, as the text has
+    mark = Image.new(mode, (ink.width + 2, ink.height + 2), 0)  # +1px, as the text has
     mark.paste(ink, (1, 1))
     return mark, round(_cap(font) * _MARK_GAP + mark.width / 2)
 
@@ -103,45 +106,49 @@ def _mark_corner(mark: Image.Image, offset: int, x: float, baseline: float, cap:
 
 def mark_room(font: ImageFont.FreeTypeFont) -> int:
     """How far past the end of its text a mark reaches."""
-    mark, offset = _mark(font)
+    mark, offset = _mark(font, "L")  # never narrower than the panel's mode "1" mark
     return offset + math.ceil(mark.width / 2)
 
 
 def draw_mark(mask: Image.Image, x: float, baseline: float, font: ImageFont.FreeTypeFont) -> None:
     """A newcomer's mark into `mask`, in line with text that ends at `x`."""
-    mark, offset = _mark(font)
+    mark, offset = _mark(font, mask.mode)
     mask.paste(255, _mark_corner(mark, offset, x, baseline, _cap(font)), mark)
 
 
 def text_mask(text: str, font: ImageFont.FreeTypeFont, flat: bool) -> Image.Image:
     """Text as an "L" alpha mask, +1px so the italic's overhang is not shaved.
     Newlines stack centred (a second language) on the text layout's own
-    baselines - separately trimmed masks would sit unevenly. Flat drops the
-    antialiasing, which would otherwise dither into colour speckle. A first
-    line ending in NEW gets its mark; whatever it reaches past the text on the
-    right is matched on the left, so the name stays centred. A label with a line in a fallback face (`fonts.face`) is stacked by hand."""
+    baselines - separately trimmed masks would sit unevenly. Flat draws in
+    mode "1" (`flat_mode`), so the mask holds no grey for the dither to speckle
+    into colour. A first line ending in NEW gets its mark; whatever it reaches
+    past the text on the right is matched on the left, so the name stays centred.
+    A label with a line in a fallback face (`fonts.face`) is stacked by hand."""
     first, *rest = text.split("\n")
     marked = first.endswith(NEW)
     lines = [first.removesuffix(NEW), *rest]
     faces = [fonts.face(line, font) for line in lines]
+    mode = flat_mode(flat)
     if all(face is font for face in faces):
-        mask, origin = _multiline("\n".join(lines), font)
+        mask, origin = _multiline("\n".join(lines), font, mode)
     else:
-        mask, origin = _stacked(lines, faces, font)
+        mask, origin = _stacked(lines, faces, font, mode)
     if marked:
         mask = _with_mark(mask, lines, faces, origin)
-    return flatten(mask) if flat else mask
+    return mask.convert("L")
 
 
-def _multiline(text: str, font: ImageFont.FreeTypeFont) -> tuple[Image.Image, tuple[float, float]]:
+def _multiline(
+    text: str, font: ImageFont.FreeTypeFont, mode: str
+) -> tuple[Image.Image, tuple[float, float]]:
     """Lines in one face, and where the first line's ascender starts."""
     spacing = round(font.size * _LINE_SPACING)
-    measure = ImageDraw.Draw(Image.new("L", (1, 1)))
+    measure = ImageDraw.Draw(Image.new(mode, (1, 1)))
     x0, y0, x1, y1 = measure.multiline_textbbox(
         (0, 0), text, font=font, spacing=spacing, align="center"
     )
     # Ceil: a multi-line bbox is fractional, and a short box shaves the text.
-    mask = Image.new("L", (math.ceil(x1 - x0) + 2, math.ceil(y1 - y0) + 2), 0)
+    mask = Image.new(mode, (math.ceil(x1 - x0) + 2, math.ceil(y1 - y0) + 2), 0)
     origin = (1 - x0, 1 - y0)
     ImageDraw.Draw(mask).multiline_text(
         origin, text, font=font, fill=255, spacing=spacing, align="center"
@@ -150,7 +157,7 @@ def _multiline(text: str, font: ImageFont.FreeTypeFont) -> tuple[Image.Image, tu
 
 
 def _stacked(
-    lines: list[str], faces: list[ImageFont.FreeTypeFont], font: ImageFont.FreeTypeFont
+    lines: list[str], faces: list[ImageFont.FreeTypeFont], font: ImageFont.FreeTypeFont, mode: str
 ) -> tuple[Image.Image, tuple[float, float]]:
     """`_multiline` for lines in faces of their own: centred on the widest, and
     a line apart by Pillow's own multiline rule (the foot of an "A" plus the
@@ -165,7 +172,7 @@ def _stacked(
     ]
     x0, y0 = min(b[0] for b in boxes), min(b[1] for b in boxes)
     x1, y1 = max(b[2] for b in boxes), max(b[3] for b in boxes)
-    mask = Image.new("L", (math.ceil(x1 - x0) + 2, math.ceil(y1 - y0) + 2), 0)
+    mask = Image.new(mode, (math.ceil(x1 - x0) + 2, math.ceil(y1 - y0) + 2), 0)
     origin = (1 - x0, 1 - y0)
     draw = ImageDraw.Draw(mask)
     for (x, y), face, line in zip(spots, faces, lines, strict=True):
@@ -180,7 +187,7 @@ def _with_mark(
     origin: tuple[float, float],
 ) -> Image.Image:
     """`mask` grown to hold the mark after its first line, as much on each side."""
-    mark, offset = _mark(faces[0])
+    mark, offset = _mark(faces[0], mask.mode)
     # Lines are centred on the widest, so a short first line ends short of it.
     widths = [face.getlength(line) for face, line in zip(faces, lines, strict=True)]
     end = origin[0] + (max(widths) + widths[0]) / 2
@@ -188,7 +195,7 @@ def _with_mark(
     sx, sy = _mark_corner(mark, offset, end, baseline, _cap(faces[0]))
     side = max(0, sx + mark.width - mask.width)
     top, bottom = min(0, sy), max(mask.height, sy + mark.height)
-    grown = Image.new("L", (mask.width + 2 * side, bottom - top), 0)
+    grown = Image.new(mask.mode, (mask.width + 2 * side, bottom - top), 0)
     grown.paste(mask, (side, -top))
     grown.paste(255, (sx + side, sy - top), mark)
     return grown
@@ -200,14 +207,20 @@ def figures_mask(text: str, font: ImageFont.FreeTypeFont, flat: bool) -> Image.I
     figures = [font.getbbox(c, anchor="ls") for c in "0123456789"]
     top, bottom = min(b[1] for b in figures), max(b[3] for b in figures)
     x0, _, x1, _ = font.getbbox(text, anchor="ls")
-    mask = Image.new("L", (math.ceil(x1 - x0) + 2, math.ceil(bottom - top) + 2), 0)
+    mode = flat_mode(flat)
+    mask = Image.new(mode, (math.ceil(x1 - x0) + 2, math.ceil(bottom - top) + 2), 0)
     ImageDraw.Draw(mask).text((1 - x0, 1 - top), text, font=font, fill=255, anchor="ls")
-    return flatten(mask) if flat else mask
+    return mask.convert("L")
 
 
-def flatten(mask: Image.Image) -> Image.Image:
-    """Hard-threshold antialiased text for the panel."""
-    return mask.point(lambda v: 255 if v > _CUTOFF else 0)
+def flat_mode(flat: bool) -> str:
+    """The image mode text for the panel is drawn in. A mode "1" target makes
+    Pillow load glyphs with FT_LOAD_TARGET_MONO, FreeType's hinting for one-bit
+    output: stems come out a whole number of pixels wide and baselines and
+    x-heights land on pixel rows, which no threshold of antialiased text can do:
+    its stems wander between one and two pixels and hairlines break into dots
+    (discussion #76). Converted back to "L" it is a 0/255 mask like any other."""
+    return "1" if flat else "L"
 
 
 def stamp(canvas: Image.Image, mask: Image.Image, at: tuple[int, int], textured: bool) -> None:
