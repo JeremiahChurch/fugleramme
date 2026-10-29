@@ -9,7 +9,8 @@ detections and renders the recently-seen birds as a collage on an
 panel, or on any screen.
 
 Fugleramme can install BirdNET-Go for you, or read from one you already run - on the
-same machine or elsewhere.
+same machine or elsewhere. No mic? It can use a public
+[BirdWeather station](operations.md#using-birdweather-instead-of-birdnet-go) instead.
 
 | No detections | A few visitors | A full garden |
 | :---: | :---: | :---: |

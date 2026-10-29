@@ -48,7 +48,9 @@ capsule, and what you need if you want to hear bats).
 ## Frame only (external or existing BirdNET-Go)
 
 No mic, no sound card, no BirdNET-Go on the Pi. It reads from one
-you already run elsewhere on the network, so the frame can hang anywhere.
+you already run elsewhere on the network, or from a public
+[BirdWeather](operations.md#using-birdweather-instead-of-birdnet-go) station, so the frame
+can hang anywhere.
 
 | Part | What works |
 | --- | --- |
@@ -65,8 +67,9 @@ you already run elsewhere on the network, so the frame can hang anywhere.
 - **The cooler is optional.** Nothing is classifying around the clock here, so
   the Pi pretty much idles between renders.
 - **Less storage.** No sound clips, no detection database.
-- **You do need a BirdNET-Go it can reach.** Give its address during the install
-  (see [Where BirdNET-Go "lives"](install.md#where-birdnet-go-lives)), or set it
+- **You do need a BirdNET-Go it can reach, or a public BirdWeather station.** Give
+  BirdNET-Go's address during the install (see
+  [Where BirdNET-Go "lives"](install.md#where-birdnet-go-lives)), or set either
   later on the admin page.
 
 ## Battery-powered frame (external Fugleramme)

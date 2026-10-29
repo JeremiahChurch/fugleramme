@@ -1,6 +1,6 @@
 # Languages
 
-The species names on the rendered page come from BirdNET-Go, in any of its species languages.
+The species names on the rendered page come from BirdNET-Go, in any of its species languages, or from [BirdWeather](operations.md#using-birdweather-instead-of-birdnet-go) if you use that instead.
 
 > [!NOTE]
 > The admin page is currently only offered in English.
@@ -27,6 +27,8 @@ dictionaries are offered.
 locale)", uses whatever BirdNET-Go's Settings -> Analysis -> Species Language is
 set to. That can be any of
 [BirdNET-Go's species languages](https://github.com/tphakala/birdnet-go/wiki/BirdNET-Go-Guide#supported-languages-for-species-labels).
+
+With BirdWeather, the list is instead the languages BirdWeather has names in. A name it lacks shows as the scientific name.
 
 Dates on the page follow the primary language.
 

@@ -12,13 +12,23 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from string import Template
+from typing import Any
 from urllib.parse import urlencode, urlparse
 
 from PIL.ImageFont import FreeTypeFont
 
-from .. import __version__, modes, updates
+from .. import __version__, birdweather, modes, updates
 from ..api import probe
-from ..config import BIRDNET_PORT, DOCS_URL, NEW_ISSUE_URL, WEB_ASPECTS, WEB_HEIGHTS
+from ..config import (
+    BIRDNET_PORT,
+    DEFAULT_PANEL_SIZE,
+    DOCS_URL,
+    NEW_ISSUE_URL,
+    PANEL_SIZES,
+    SAME_AS_INKY,
+    WEB_ASPECTS,
+    WEB_HEIGHTS,
+)
 from ..languages import (
     NONE,
     SCIENTIFIC,
@@ -47,7 +57,19 @@ from ..settings import (
     lookback_order,
     merged,
 )
-from ..source import NEEDS_PASSWORD, Unavailable
+from ..source import (
+    BIRDNET_GO,
+    BIRDWEATHER,
+    BIRDWEATHER_SITE,
+    DETECTOR_KINDS,
+    MOST_STATIONS,
+    NEEDS_PASSWORD,
+    Unavailable,
+    station_fault,
+    station_id,
+    station_pages,
+    with_scheme,
+)
 from ..status import Status
 from ..taxa import common_of
 from . import LOGIN, LOGOUT, STATIC_DIR, hostinfo
@@ -77,6 +99,8 @@ def form_changes(form: dict[str, list[str]]) -> dict:
     the System form, which has no `show_names`, would read as switching names
     off. settings._coerce validates the rest."""
     changes: dict[str, str | bool | int] = {k: v[0] for k, v in form.items() if k != CHECKBOXES}
+    if "detector_station" in form:  # a row per station
+        changes["detector_station"] = ", ".join(form["detector_station"])
     # Each block declares its own boxes: a dimmed block posts neither.
     for field in " ".join(form.get(CHECKBOXES, [])).split():
         changes[field] = field in form
@@ -90,12 +114,64 @@ def form_changes(form: dict[str, list[str]]) -> dict:
     return changes
 
 
+# The Detector form's type, as the reader knows each one.
+KINDS = {BIRDNET_GO: "BirdNET-Go", BIRDWEATHER: "BirdWeather station(s)"}
+
+
+def _logo(kind: str) -> str:
+    """The detector's own favicon. admin.js loads it and shows it once it has
+    arrived, so one that cannot load leaves nothing."""
+    return f'<img class="logo" data-kind="{kind}" alt="" referrerpolicy="no-referrer" hidden>'
+
+
+NO_STATION = "no station saved"
+_BIRDWEATHER_HOST = urlparse(BIRDWEATHER_SITE).hostname
+
+
+def refusal(kind: str, stations: str) -> tuple[str, str]:
+    """What the test and the form say about what a type's field cannot hold, as
+    (Detector row, note), or ("", "") when it can: BirdNET-Go's address holding
+    a station, or BirdWeather's `stations` anything `source.station_fault` names."""
+    if kind == BIRDNET_GO:
+        return (
+            "a BirdWeather station",
+            "That is a BirdWeather station. Choose BirdWeather as the type and enter it there.",
+        )
+    pages = station_pages(stations)
+    fault = station_fault(pages)
+    wrong = next((page for page in pages if not station_id(page)), "")
+    notes = {
+        "": "",
+        "not a station": (
+            f'"{wrong}" is not a BirdWeather station. Enter the station\'s ID, '
+            f"or its page: {BIRDWEATHER_SITE}/stations/<ID>."
+        ),
+        "too many stations": f"The frame reads at most {MOST_STATIONS} stations.",
+        "stations on two sites": "The stations must all be on the same site.",
+    }
+    return fault, notes[fault]
+
+
+def refused(changes: dict) -> str:
+    """The type whose address a save is refused for, or "". Each type has its own
+    field, so only one typed into the wrong one is refused: a station's page or
+    bare ID as BirdNET-Go's address, or anything `refusal` names as BirdWeather's.
+    Settings would otherwise drop the station silently, or save it as a BirdNET-Go."""
+    typed = str(changes.get("detector_url", "")).strip()
+    url = with_scheme(typed)
+    if typed.isdigit() or station_id(url) or urlparse(url).hostname == _BIRDWEATHER_HOST:
+        return BIRDNET_GO
+    if station_fault(station_pages(str(changes.get("detector_station", "")))):
+        return BIRDWEATHER
+    return ""
+
+
 def subjects(ctx: modes.Context) -> list[tuple[str, str | None, str]]:
     """What the current mode's page is about, each with the plate its artwork
     was cut from - None when it has none to draw - and the plate's citation."""
     rows: list[tuple[str, str | None, str]] = []
     for name in modes.subjects(ctx):
-        pick = image_for(name, ctx.images_dir, ctx.style, ctx.picks)
+        pick = image_for(name, ctx.images_dir, ctx.style, ctx.day)
         if not pick:
             rows.append((name, None, ""))
             continue
@@ -194,10 +270,17 @@ def _fix(problem: str) -> str:
     )
 
 
+_OUTAGES = {
+    "auth": f"detector {NEEDS_PASSWORD}",
+    "missing": "no such station",
+    "unset": NO_STATION,
+}
+
+
 def _outage(state: str) -> str:
-    """What to show where a bird would have been. Only a refusal names the
-    password; anything else reads as unreachable, which is what the page saw."""
-    return f"detector {NEEDS_PASSWORD}" if state == "auth" else "detector unreachable"
+    """What to show where a bird would have been. A detector that answered says
+    what it wants; anything else reads as unreachable, which is what the page saw."""
+    return _OUTAGES.get(state, "detector unreachable")
 
 
 def _detector(state: str, version: str, reading: bool, names_failure: str = "") -> str:
@@ -231,6 +314,55 @@ _ANSWERS = {
     "names": ("connected", _detector("ok", "", reading=True, names_failure=NEEDS_PASSWORD)),
     "unreachable": ("unreachable", _detector("down", "", reading=False)),
 }
+
+
+def _station(page: str, about: dict[str, Any] | None) -> str:
+    """One BirdWeather station's line, worded like BirdNET-Go's: its logo, name
+    and #ID, linked to its page, and when it last heard anything, bird or not,
+    or that BirdWeather does not have it. A cell each, dots included, so the
+    lines' columns line up; the logo in a cell of its own, since one that
+    cannot load is hidden and would shift the rest."""
+    id_ = f"#{html.escape(station_id(page))}"
+    if about is None:
+        tone, name, heard = "bad", "", "no such station"
+    else:
+        latest = about.get("latestDetectionAt")
+        tone, name = "ok", html.escape(str(about.get("name") or ""))
+        id_ = f'<a href="{html.escape(page, quote=True)}">{id_}</a>'
+        heard = f"latest detection {_stamp(datetime.fromisoformat(latest))}" if latest else ""
+    cells = (name, "·" if name else "", id_, "·", heard or "nothing heard yet")
+    return f"<span>{_logo(BIRDWEATHER)}</span>" + "".join(
+        f'<span class="{tone}">{cell}</span>' for cell in cells
+    )
+
+
+def _stations(url: str, state: str, about: dict[str, dict[str, Any] | None], reading: bool) -> str:
+    """The BirdWeather stations `url` lists, a line each. `state` and `about` are
+    `hostinfo.stations`'; `reading` says whether the page's own reads came back,
+    which they cannot while BirdWeather has none of the stations."""
+    if state == "missing":
+        return '<span class="bad">no such station</span>'
+    if state != "ok" or (any(about.values()) and not reading):
+        return '<span class="bad">unreachable</span>'
+    lines = "".join(_station(page, about[station_id(page)]) for page in station_pages(url))
+    return f'<span class="stations">{lines}</span>'
+
+
+# `_ANSWERS`' leads for BirdWeather. Its row names the stations, so it is built per answer.
+_STATION_LEADS = {"ok": "connected", "partial": "connected", "unreachable": "unreachable"}
+
+
+def _status_row(settings: Settings, reading: bool, names_failure: str) -> tuple[str, str]:
+    """The saved detector's state and its Detector row. BirdWeather with no
+    station saved has nothing to ask, so it says so."""
+    if settings.detector_kind != BIRDWEATHER:
+        state, version = hostinfo.detector(settings.detector_url)
+        return state, _detector(state, version, reading, names_failure)
+    if not settings.detector_station:
+        return "unset", f'<span class="bad">{NO_STATION}</span>'
+    state, about = hostinfo.stations(settings.detector_station)
+    row = _stations(settings.detector_station, state, about, reading)
+    return ("missing" if state == "ok" and not any(about.values()) else state), row
 
 
 def _duration(seconds: int) -> str:
@@ -427,19 +559,89 @@ def _text_field(field: str, label: str, value: str, kind: str = "text", hint: st
     )
 
 
-def _detector_field(settings: Settings) -> str:
-    """Where the frame reads from, and the password if it wants one.
+def _shown(field: str, kind: str, shown: bool) -> str:
+    """A `_text_field` belonging to one type, hidden and disabled while the other
+    is chosen: it posts nothing, so a save leaves its stored value alone."""
+    field = field.replace("<label>", f'<label data-kind="{kind}"{"" if shown else " hidden"}>', 1)
+    return field if shown else field.replace("<input ", "<input disabled ", 1)
+
+
+def _stations_field(settings: Settings, shown: bool) -> str:
+    """BirdWeather's stations, a row each with an × to remove it, a button
+    adding one up to `MOST_STATIONS`, and a dialog listing the stations nearest
+    a place (admin.js). With none saved, one empty row. Text inputs, since a
+    bare ID is no URL. The search posts nothing: its field has no name."""
+    off = "" if shown else " disabled"
+    rows = "".join(
+        f'<div class="station"><input type="text" name="detector_station"'
+        f' value="{html.escape(_typed(page), quote=True)}"{off}>'
+        '<button type="button" class="remove" aria-label="Remove station">×</button></div>'
+        for page in station_pages(settings.detector_station) or [""]
+    )
+    return (
+        f'<div class="field stations" data-kind="{BIRDWEATHER}" data-most="{MOST_STATIONS}"'
+        f"{'' if shown else ' hidden'}><span>Stations <small>(ID or address)</small></span>"
+        f'{rows}<button type="button" class="add">+ Add station</button>'
+        '<button type="button" class="find">Find stations…</button>'
+        '<dialog class="near"><header><strong>Find stations</strong>'
+        '<button type="button" class="close" aria-label="Close">×</button></header>'
+        '<input type="search" placeholder="Type a place" aria-label="Place" autofocus>'
+        '<ul class="places"></ul><p class="note"></p><ul class="found"></ul>'
+        f'<a href="{BIRDWEATHER_SITE}" target="_blank" rel="noopener">'
+        "Browse BirdWeather's map ↗</a></dialog></div>"
+    )
+
+
+def _typed(page: str) -> str:
+    """A saved station as its row shows it: BirdWeather's own by its ID alone,
+    which a page that long would scroll out of the input. Saving reads it back."""
+    found = station_id(page)
+    return found if page == f"{BIRDWEATHER_SITE}/stations/{found}" else page
+
+
+def _detector_field(settings: Settings, refused: str, stations: str) -> str:
+    """Which kind of detector the frame reads, and each kind's own fields:
+    BirdNET-Go's address and password, BirdWeather's stations. Only the chosen
+    kind's are shown; admin.js swaps them as the type changes. `refused` is the
+    type a save was just refused for and `stations` what it held: the form
+    comes back on that type, with the note under its address, since that is
+    the field to fix.
 
     A password only: the username BirdNET-Go's API insists on is a fixed client
     id (`api.CLIENT_ID`). An install that changed `security.basicauth.clientid`
     sets `detector_username` in settings.json instead.
     """
-    return _text_field("detector_url", "Address", settings.detector_url, "url") + _text_field(
+    chosen = refused if refused in DETECTOR_KINDS else settings.detector_kind
+    birdnet = chosen == BIRDNET_GO
+    said = refusal(refused, stations)[1] if refused in DETECTOR_KINDS else ""
+    note = f'<p class="note bad">{html.escape(f"Not saved. {said}")}</p>' if said else ""
+    kinds = [(kind, f"{_logo(kind)}{KINDS[kind]}") for kind in DETECTOR_KINDS]
+    # Text, not a url input: the browser would refuse an address with no scheme,
+    # which settings read as http://.
+    address = _text_field("detector_url", "Address", settings.detector_url).replace(
+        "<input ", '<input inputmode="url" ', 1
+    )
+    public = _text_field(
+        "detector_public_url",
+        "Public address",
+        settings.detector_public_url,
+        hint="(optional, for links to BirdNET-Go)",
+    ).replace("<input ", '<input inputmode="url" ', 1)
+    password = _text_field(
         "detector_password",
         "Password",
         PASSWORD_SET if settings.detector_password else "",
         "password",
         "(basic authentication)",
+    )
+    return (
+        _radio_field("Type", "detector_kind", kinds, chosen)
+        + _shown(address, BIRDNET_GO, birdnet)
+        + (note if birdnet else "")
+        + _shown(public, BIRDNET_GO, birdnet)
+        + _stations_field(settings, not birdnet)
+        + ("" if birdnet else note)
+        + _shown(password, BIRDNET_GO, birdnet)
     )
 
 
@@ -514,14 +716,45 @@ def login_page(error: str = "") -> str:
     )
 
 
-def birdnet_link(url: str) -> tuple[str, int | None]:
-    """The nav link to BirdNET-Go: (address, port to substitute this page's host
-    on). A loopback address is loopback from the Pi only, so a remote browser
-    cannot follow it; anything else is reached exactly as configured."""
+def birdnet_link(url: str, kind: str = BIRDNET_GO, public_url: str = "") -> tuple[str, int | None]:
+    """The nav link to the detector's own pages: (address, port to substitute
+    this page's host on). A loopback address is loopback from the Pi only, so a
+    remote browser cannot follow it; anything else, a BirdWeather station's page
+    included, is reached exactly as configured. No station yet is BirdWeather's
+    own front page, and several are the first's (`_detector_link` lists them).
+    A public address, when one is set, is reached exactly as configured."""
+    if kind == BIRDWEATHER:
+        return (station_pages(url) or [BIRDWEATHER_SITE])[0], None
+    if public_url:
+        return public_url, None
     parsed = urlparse(url)
     if parsed.hostname in _LOOPBACK:
         return url, parsed.port or BIRDNET_PORT
     return url, None
+
+
+def _detector_link(settings: Settings) -> str:
+    """The nav link to the detector's own pages, which admin.js points at
+    `birdnet_link`. Several stations have no page between them, so the link
+    opens a list of them instead."""
+    name = KINDS[settings.detector_kind].removesuffix(" station(s)")
+    pages = (
+        station_pages(settings.detector_station) if settings.detector_kind == BIRDWEATHER else []
+    )
+    if len(pages) < 2:
+        return f'<a id="birdnet" href="#" title="detection &amp; stats">{name}</a>'
+    about = hostinfo.stations(settings.detector_station)[1]
+    named = {
+        page: (about.get(station_id(page)) or {}).get("name") or station_id(page) for page in pages
+    }
+    links = "".join(
+        f'<a href="{html.escape(page, quote=True)}">{html.escape(str(name))}</a>'
+        for page, name in named.items()
+    )
+    return (
+        '<button type="button" class="link" popovertarget="stations" title="detection &amp; stats">'
+        f'{name}</button><div id="stations" popover>{links}</div>'
+    )
 
 
 def connection(form: dict[str, list[str]], settings: Settings) -> dict:
@@ -529,15 +762,41 @@ def connection(form: dict[str, list[str]], settings: Settings) -> dict:
     saved ones - validated and placeholder-resolved exactly as Save would.
 
     `status` is the row `_detector` would render for the same answer, so a test
-    and a page load can never describe one detector differently."""
-    tried = merged(settings, **form_changes(form))
-    state, detail = probe(tried.detector_url, tried.detector_username, tried.detector_password)
-    lead, row = _ANSWERS[state]
+    and a page load can never describe one detector differently. A working
+    station's row is `hostinfo`'s, which is what a page load shows; JS only
+    puts it up for the saved values, and those are the ones `hostinfo` holds."""
+    changes = form_changes(form)
+    wrong = refused(changes)
+    if wrong:
+        short, said = refusal(wrong, str(changes.get("detector_station", "")))
+        return {"state": "refused", "text": said, "status": f'<span class="bad">{short}</span>'}
+    tried = merged(settings, **changes)
+    kind, url = tried.detector_kind, tried.detector_address
+    if not url:
+        row = f'<span class="bad">{NO_STATION}</span>'
+        return {"state": "unset", "text": "no station entered", "status": row}
+    state, detail = probe(url, tried.detector_username, tried.detector_password, kind)
+    if kind == BIRDWEATHER:
+        lead = _STATION_LEADS.get(state, "")
+        row = _stations(url, *hostinfo.stations(url), reading=state != "unreachable")
+    else:
+        lead, row = _ANSWERS[state]
     return {
         "state": state,
         "text": " · ".join(part for part in (lead, detail) if part),
         "status": row,
     }
+
+
+def stations_near(lat: float, lon: float) -> dict:
+    """The station search's answer for a place: the nearest stations, or why
+    there are none."""
+    try:
+        found = birdweather.nearest(lat, lon)
+    except Unavailable as error:
+        return {"stations": [], "text": str(error)}
+    text = "" if found else f"No active stations within {birdweather.RADII_KM[-1]} km."
+    return {"stations": [station._asdict() for station in found], "text": text}
 
 
 def _lookbacks(settings: Settings) -> str:
@@ -597,14 +856,27 @@ EDGES = "The same margin on every edge of the panel"
 
 
 EXTERNAL = (
-    "Serves the panel's page at /frame.e6, for an external e-ink panel "
-    "driven by its own board. Without an Inky Impression, the page is laid "
-    "out for that panel. Anyone who can reach the frame can access /frame.e6."
+    "Serves the page to an e-ink panel driven by another device."
+    "\n\nAnyone who can reach the frame can see it. Its buttons need the admin password "
+    "while sign-in is on."
 )
+
+PANEL_SIZE = "The external panel's size. /frame.e6 is 13.3\" only."
 
 
 def _output_field(settings: Settings, detected: bool) -> str:
     # Only the external panel is a setting; the disabled rows post nothing, so declare none.
+    # Its size shows while the box is ticked; admin.js follows the form. Following the
+    # Inky is only offered while there is one to follow.
+    sizes = {s: '{}" ({}×{})'.format(s, *PANEL_SIZES[s]) for s in PANEL_SIZES}
+    if detected:
+        sizes = {SAME_AS_INKY: "Same as this frame's Inky", **sizes}
+    picked = (
+        settings.external_panel_size
+        if detected
+        else settings.external_panel_size or DEFAULT_PANEL_SIZE
+    )
+    off = "" if settings.external_panel else " disabled"
     inky = (
         "Always enabled as an Inky Impression panel is currently connected."
         if detected
@@ -624,6 +896,9 @@ def _output_field(settings: Settings, detected: bool) -> str:
             f"<span>External e-ink panel {_hint(EXTERNAL)}</span>",
             checked=settings.external_panel,
         )
+        + f'<label class="sub" id="panel-size"{"" if settings.external_panel else " hidden"}>'
+        f'<small>External panel size {_hint(PANEL_SIZE)}</small><select name="external_panel_size"{off}>'
+        f"{_options(sizes, picked, sizes.get)}</select></label>"
         + _checkbox(
             "web_enable",
             f"<span>Browser kiosk {_hint('Web access is always enabled.')}</span>",
@@ -752,35 +1027,41 @@ def page(
     panel_size: tuple[int, int],
     detected: bool,
     names_dir: Path,
+    refused: str = "",
+    stations: str = "",
 ) -> str:
     """The admin page. Everything about the frame comes off `ctx`, so the
     listing always describes the page the preview is rendering.
 
     Renders with the detector down on purpose: this is the page you reach for
-    when it is, so the rows that need it say so rather than vanish.
+    when it is, so the rows that need it say so rather than vanish. `refused` is
+    the detector type a save was just refused for (`refused()`) and `stations`
+    the stations it held, both carried across the redirect.
     """
     languages = ordered(catalog(names_dir))
     face_notes = _face_notes(
         {code for code, _ in languages} | {settings.primary_language, settings.secondary_language}
     )
     names_failure = catalog_failure()
-    detector_state, detector_version = hostinfo.detector(settings.detector_url)
     try:
         latest, rows, without = ctx.source.latest(), subjects(ctx), missing(ctx)
     except Unavailable:
         latest, rows, without = None, None, None
+    detector_state, detector_row = _status_row(settings, rows is not None, names_failure)
     windowed = modes.mode_of(settings.mode).windowed
     online, iface = hostinfo.online()
     rendered = _stamp(status.rendered_at) if status.rendered_at else "not yet"
     if status.push_error:
         rendered += f" · panel push failing ({status.push_error})"
-    # Without an Inky Impression connected, the external e-ink panel is the
+    # With no Inky connected to this frame, the external e-ink panel is the
     # one the page is laid out for.
     paneled = detected or settings.external_panel
     attached = panel_size if paneled else None
     w, h = settings.web_size(attached)
     glass = f"{panel_size[0]}×{panel_size[1]}"
-    birdnet_url, birdnet_port = birdnet_link(settings.detector_url)
+    birdnet_url, birdnet_port = birdnet_link(
+        settings.detector_address, settings.detector_kind, settings.detector_public_url
+    )
     return Template((STATIC_DIR / "admin.html").read_text()).substitute(
         version=__version__,
         docs_url=DOCS_URL,
@@ -790,6 +1071,7 @@ def page(
             {
                 "birdnetUrl": birdnet_url,
                 "birdnetPort": birdnet_port,
+                "kind": settings.detector_kind,
                 "version": __version__,
                 "passwordSet": PASSWORD_SET,
                 "windowedModes": [k for k, m in MODES.items() if m.windowed],
@@ -799,6 +1081,7 @@ def page(
                 # else the external panel's.
                 "panel": [max(panel_size), min(panel_size)],
                 "detected": detected,
+                "panelSizes": PANEL_SIZES,  # so the page follows the external panel size picked
                 "faceNotes": face_notes,  # so the Typeface warning follows the form
             }
         ),
@@ -831,8 +1114,13 @@ def page(
         update=_update(status),
         auto_update=_auto_update(settings),
         panel=f"detected · {glass}" if detected else "not detected",
-        birdnet=_detector(detector_state, detector_version, rows is not None, names_failure),
-        detector_field=_detector_field(settings),
+        detector_name=KINDS[settings.detector_kind].removesuffix(" station(s)"),
+        detector_link=_detector_link(settings),
+        # Each station's line carries its own.
+        detector_logo="" if settings.detector_kind == BIRDWEATHER else _logo(BIRDNET_GO),
+        detector_label="Detector(s)" if settings.detector_kind == BIRDWEATHER else "Detector",
+        birdnet=detector_row,
+        detector_field=_detector_field(settings, refused, stations),
         access_field=_access_field(settings),
         signout=_signout(settings),
         host=hostinfo.lan_address(updates.in_container()),

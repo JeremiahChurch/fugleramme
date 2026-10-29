@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
+import sys
+
+import pytest
+
+from fugleramme import check, fake
 from fugleramme.check import run
+from fugleramme.settings import SettingsStore
+from fugleramme.source import BIRDNET_GO, BIRDWEATHER
 
 
 def test_a_healthy_detector_answers_everything(detector, tmp_path, capsys):
@@ -38,3 +45,64 @@ def test_a_detector_that_only_gates_the_names_fails_the_language_check(detector,
     assert "FAIL name languages" in out and "needs a password" in out
 
     assert run(url, "", "hunter2", tmp_path) == 0
+
+
+def test_a_birdweather_station_answers_everything(detector, tmp_path, capsys):
+    url, _httpd = detector(birdweather=True)
+    assert run(f"{url}/stations/{fake.STATION_ID}", "", "", tmp_path, BIRDWEATHER) == 0
+    out = capsys.readouterr().out
+    assert f"ok   station {fake.STATION_ID}              {fake.STATION_NAME}" in out
+
+
+def test_several_stations_are_a_line_each(detector, tmp_path, capsys):
+    url, _httpd = detector(birdweather=True)
+    stations = f"{url}/stations/{fake.STATION_ID}, {url}/stations/404"
+    assert run(stations, "", "", tmp_path, BIRDWEATHER) == 1  # the missing one fails
+    out = capsys.readouterr().out
+    assert f"ok   station {fake.STATION_ID}              {fake.STATION_NAME}" in out
+    assert "FAIL station 404            no such station" in out
+    assert "ok   species, all time" in out  # the other station still answers
+
+
+def test_a_station_birdweather_does_not_have_is_named_as_such(detector, tmp_path, capsys):
+    url, _httpd = detector(birdweather=True)
+    assert run(f"{url}/stations/404", "", "", tmp_path, BIRDWEATHER) == 1
+    assert "FAIL station 404            no such station" in capsys.readouterr().out
+
+
+def test_another_detector_is_read_as_what_its_address_says(tmp_path, monkeypatch):
+    """A station's page, or its ID, is BirdWeather's whatever is saved; with no
+    address given the saved type and its own address stand."""
+    config = tmp_path / "settings.json"
+    station = "https://app.birdweather.com/stations/1"
+    SettingsStore(config).update(detector_kind=BIRDWEATHER, detector_station=station)
+    ran = []
+    monkeypatch.setattr(check, "run", lambda url, _u, _p, _dir, kind: ran.append((url, kind)) or 0)
+
+    for argv in (["31086"], ["31086,15982"], ["http://pi.local:8090"], ["pi.local:8090"], []):
+        detector = ["--detector", *argv] if argv else []
+        monkeypatch.setattr(sys, "argv", ["fugleramme-check", "--config", str(config), *detector])
+        try:
+            check.main()
+        except SystemExit:
+            pass
+
+    assert ran == [
+        ("https://app.birdweather.com/stations/31086", BIRDWEATHER),
+        (
+            "https://app.birdweather.com/stations/31086, https://app.birdweather.com/stations/15982",
+            BIRDWEATHER,
+        ),
+        ("http://pi.local:8090", BIRDNET_GO),
+        ("http://pi.local:8090", BIRDNET_GO),  # no scheme is plain HTTP
+        (station, BIRDWEATHER),
+    ]
+
+
+def test_no_station_saved_is_said_without_asking(tmp_path, monkeypatch):
+    config = tmp_path / "settings.json"
+    SettingsStore(config).update(detector_kind=BIRDWEATHER)
+    monkeypatch.setattr(check, "run", lambda *args: pytest.fail("asked BirdWeather"))
+    monkeypatch.setattr(sys, "argv", ["fugleramme-check", "--config", str(config)])
+    with pytest.raises(SystemExit, match="No BirdWeather station is saved"):
+        check.main()

@@ -1,7 +1,7 @@
-"""Species names in the reader's language, from BirdNET-Go's API.
+"""Species names in the reader's language, from the detector.
 
-Nothing is vendored: BirdNET-Go is the only name source, so they come over HTTP
-from the same instance the frame reads its detections from - through that
+Nothing is vendored: the detector is the only name source. A BirdNET-Go's come
+over HTTP from the same instance the frame reads its detections from - through that
 source's session, since PrivateMode gates these two endpoints as well:
 
     GET /api/v2/settings/locales           -> {code: English name}, all label locales
@@ -25,6 +25,10 @@ STATION, BirdNET-Go's own species language (birdnet.locale), is the one outside
 the dictionaries. `/species/all` names it with no password; only which language
 it is, for the label and the dates, needs one. So it is offered once the
 locale list gets any answer, 401 included, and stays offered from then on.
+
+A BirdWeather station has none of that: `common_names` hands over every language
+its birds are named in at once, and those are the languages offered. They cache
+under `<cache_dir>/names/birdweather.json`, with the station they name.
 """
 
 from __future__ import annotations
@@ -39,7 +43,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .source import NEEDS_PASSWORD, Unavailable
+from .source import (
+    BIRDNET_GO,
+    BIRDWEATHER,
+    NEEDS_PASSWORD,
+    NoSuchStation,
+    Unavailable,
+)
 
 log = logging.getLogger(__name__)
 
@@ -62,6 +72,8 @@ _DICT_TTL = 3600
 # No ETag to revalidate by, and a changed birdnet.locale should show within minutes.
 _STATION_TTL = 300
 _RETRY_TTL = 120  # BirdNET-Go down or still starting: retry soon, not tomorrow
+# Free unless the station heard a new species, whose name should follow it soon.
+_TRANSLATIONS_TTL = 60
 
 _UNCHANGED = object()  # 304: the cached copy is still current
 
@@ -77,6 +89,10 @@ _catalog: _Catalog | None = None
 _dicts: dict[str, _Dictionary] = {}
 # (station, birdnet.locale) of the STATION names; "" when the locale is unknown.
 _station_locale: tuple[str, str] | None = None
+# A BirdWeather station's names, every language at once:
+# (deadline, station, {language: {scientific name: common name}}, version, why there are none)
+_Translations = tuple[float, str, dict[str, dict[str, str]], str, str]
+_translations: _Translations | None = None
 
 _source: Any = None
 
@@ -94,6 +110,12 @@ def _station() -> str:
     we run, and a password entered for the locale list must not sit out the
     retry TTL before it counts."""
     return str(getattr(_source, "station", ""))
+
+
+def _kind() -> str:
+    """Which kind of detector the names come from, out of
+    `source.DETECTOR_KINDS`. Read per lookup, like `_station`."""
+    return BIRDNET_GO if _source is None else str(_source.kind)
 
 
 def _request(path: str, method: str = "GET", headers: dict[str, str] | None = None):
@@ -190,6 +212,9 @@ def catalog(cache_dir: Path) -> dict[str, str]:
     """
     global _catalog
     with _lock:
+        if _kind() == BIRDWEATHER:
+            table = _birdweather(cache_dir)[2]
+            return {SCIENTIFIC: "Scientific", **{code: _language_name(code) for code in table}}
         station = _station()
         path = cache_path(cache_dir, "languages")
         if _catalog is None or _catalog[1] != station:
@@ -297,6 +322,8 @@ def catalog_failure() -> str:
     with the catalog rather than returned beside it: a list served off the disk
     cache is a working menu whatever the probe behind it just did."""
     with _lock:
+        if _kind() == BIRDWEATHER:
+            return _translations[4] if _translations else ""
         return _catalog[5] if _catalog else ""
 
 
@@ -315,6 +342,9 @@ def dictionary(code: str, cache_dir: Path) -> tuple[dict[str, str], str]:
         return {}, ""
     global _station_locale
     with _lock:
+        if _kind() == BIRDWEATHER:
+            _deadline, _held, table, version, _why = _birdweather(cache_dir)
+            return table.get(code, {}), version
         station = _station()
         path = cache_path(cache_dir, code)
         if code not in _dicts or _dicts[code][1] != station:
@@ -342,6 +372,54 @@ def dictionary(code: str, cache_dir: Path) -> tuple[dict[str, str], str]:
                 ttl = _DICT_TTL if payload is not None else _RETRY_TTL
             _dicts[code] = (time.monotonic() + ttl, station, etag, names)
         return names, etag
+
+
+def _birdweather(cache_dir: Path) -> _Translations:
+    """A BirdWeather station's names, off the disk until it answers. Held only
+    with the station they name, there and here. Called with `_lock` held."""
+    global _translations
+    station, page = _station(), str(_source.base_url)
+    path = cache_path(cache_dir, "birdweather")
+    if _translations is None or _translations[1] != station:
+        cached = _read(path)
+        mine = cached.get("station") == page
+        _translations = (
+            0.0,
+            station,
+            (cached.get("names") or {}) if mine else {},
+            str(cached.get("version") or "") if mine else "",
+            "",
+        )
+    deadline, _held, table, version, _why = _translations
+    if time.monotonic() < deadline:
+        return _translations
+    try:
+        fresh, why = _source.common_names(), "no birds heard yet"
+    except NoSuchStation:
+        fresh, why = {}, "no such station" if page else "no station saved"
+    except Unavailable:
+        fresh, why = {}, "detector unreachable"
+    # As with the catalog, an empty answer is a failure and never replaces names held.
+    if fresh:
+        answered = hashlib.sha256(json.dumps(fresh, sort_keys=True).encode()).hexdigest()[:12]
+        # Rewritten only when a name changed, which is mostly a newly heard species.
+        if answered != version:
+            _write(path, {"station": page, "version": answered, "names": fresh})
+        table, version = fresh, answered
+    ttl = _TRANSLATIONS_TTL if fresh else _RETRY_TTL
+    _translations = (time.monotonic() + ttl, station, table, version, "" if table else why)
+    return _translations
+
+
+def _language_name(code: str) -> str:
+    """A BirdWeather language's English name, region and all: "pt-br" and
+    "pt-pt" are two entries in the menu, unlike in `english_name`."""
+    if Locale is None:
+        return code
+    try:
+        return str(Locale.parse(code, sep="-").english_name or code)
+    except (UnknownLocaleError, ValueError):
+        return code
 
 
 def station_locale() -> str:
@@ -379,15 +457,16 @@ def _spelled(code: str, local: datetime, clock: bool) -> str | None:
     """The date in the language's own words, or None when babel cannot."""
     if code in (SCIENTIFIC, NONE) or format_date is None:
         return None
+    locale = code.replace("-", "_")  # babel's spelling of "pt-br"
     try:
         if not clock:
             # "long" keeps the month spelled out; asking for day-month-year
             # shortens it to "16. aug. 2026".
-            return format_date(local, "long", locale=code)
-        day = str(format_skeleton("MMMMd", local, locale=code))
+            return format_date(local, "long", locale=locale)
+        day = str(format_skeleton("MMMMd", local, locale=locale))
         # Some languages put a comma between the day and the time, some a space.
-        join = str(Locale.parse(code).datetime_formats["short"])
-        return join.format(format_time(local, "short", locale=code), day)
+        join = str(Locale.parse(locale).datetime_formats["short"])
+        return join.format(format_time(local, "short", locale=locale), day)
     except (UnknownLocaleError, ValueError, KeyError):
         log.warning("No date format for %s; using numeric", code)
         return None

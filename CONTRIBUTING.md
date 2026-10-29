@@ -27,7 +27,8 @@ Kiosk on `http://localhost:8080/`, admin on `/admin`.
 
 The fake serves the same `/api/v2` endpoints the frame reads, over generated
 detections; `--auth` and `--down` reproduce a locked-down and an unreachable
-station. To work against a real one instead, pass its address:
+station. With `--birdweather` it is a BirdWeather station instead, at
+`http://127.0.0.1:8090/stations/1` on the Detector tab. To work against a real one instead, pass its address:
 `uv run fugleramme-dev --detector http://birdnet.local:8090`.
 `uv run fugleramme-check` says whether a detector answers everything the frame
 needs, and is the first thing to run when a page comes up empty.
@@ -87,7 +88,7 @@ Retouching uses conventional tools - masking, levels, cloning the plate's own st
 | A mask from SAM or rembg | Upscaling with Topaz or Real-ESRGAN |
 | A masked generative fill over a small hole, disclosed | Redrawing texture or feathers |
 
-**A bird missing from `classic`** is the usual one - [Species coverage](https://arnegiacomo.dev/fugleramme/species/) shows the current coverage. Cut it and open a PR. If
+**A bird missing from `classic`** is the usual one - [Species coverage](https://arnegiacomo.dev/fugleramme/species/) shows the current coverage. Check the [open PRs](https://github.com/arnegiacomo/fugleramme/pulls) first, in case someone is already cutting it. Then cut it and open a PR. If
 you'd rather point at a plate than cut it yourself, open a
 [Missing bird](https://github.com/arnegiacomo/fugleramme/issues/new/choose)
 issue instead.
@@ -95,7 +96,7 @@ issue instead.
 **A whole new style** is the nicest thing you can contribute: its own folder
 under `assets/artwork/`, its own `ATTRIBUTION.md`, picked from the admin page.
 
-**Keep artwork PRs small** - around five birds each. Small PRs merge quicker and need fewer rounds of review, which is easier for both the contributor and the reviewer. If you've cut more, please split them into batches. I want to keep the bar for contributing low, and small PRs are help with that.
+**Keep artwork PRs small** - around five birds each. Small PRs merge quicker and need fewer rounds of review, which is easier for both the contributor and the reviewer. If you've cut more, please split them into batches, and open the next one once the last has merged. I want to keep the bar for contributing low, and small PRs are help with that.
 
 Some things no tool can check, so they're what an artwork PR gets read for:
 whether the licensing is A-ok, the illustration looks good and fits the styles, and whether the cut-out blends nicely on the page.
@@ -121,6 +122,13 @@ is the quickest way to see whether the halo blends:
 ```bash
 uv run python tools/add_bird.py ~/Desktop/bird.png --preview /tmp/bird.png --dry-run
 ```
+
+> [!WARNING]
+> Look at every cut yourself at full size before opening the PR. An agent's own checks passing isn't a review.
+>
+> ```bash
+> uv run python tools/preview_plates.py /tmp/preview assets/artwork/classic/birds/your-asset.webp
+> ```
 
 Then, for the style folder it lands in:
 

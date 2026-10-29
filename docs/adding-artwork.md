@@ -87,6 +87,8 @@ Run `uv run python tools/add_bird.py --help` for options such as `--style`,
 
 The frame renders bird sizes based on real mass, so it needs to know what part of an image is a bird. On a plate carrying several birds or foliage, the bird would be rendered very small.
 
+A long bill, tail, legs or outstretched wings would make the bird too small, so leave the outer part of them outside the bounding box. But don't overdo it, or the opposite happens.
+
 `add_bird` tries to spot the bird and draw a bounding box. Then it opens an editor in your browser so you can adjust any inaccuracies and compare it to other birds. (It autosaves your changes)
 
 ![The box editor, with the box drawn round the upper redpoll](assets/bird-box.png)
@@ -141,4 +143,4 @@ Happy with the bird and want to share it with others? Open a PR. See [Contributi
 - No need to trim the empty space around the bird. The tool crops to the cut-out.
 - Always look at `--preview` before you commit. It puts the bird on the frame's own paper with the frame's own halo, which is the only honest check of whether it blends.
 - Nothing that separates the bird from the page: no drop shadows, no glows
-- A second (or more) plate of the same bird is worth adding - the frame keeps one pick per bird per window, so variants show up over days rather than all at once. (e.g. variation for male/females, or different coats or scenery)
+- A second (or more) plate of the same bird is worth adding - the frame picks one per bird per day, so variants show up over days rather than all at once. (e.g. variation for male/females, or different coats or scenery)

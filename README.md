@@ -18,8 +18,10 @@ Bird frame for Raspberry Pi or your homelab - real-time bird detection by audio,
   <a href="#art"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Farnegiacomo.dev%2Ffugleramme%2Fbadges%2Fspecies.json&style=flat-square" alt="Species"></a>
 </p>
 
-> [!IMPORTANT]
-> Fugleramme has been selected for the [GOSIM Spotlight](https://spotlight.gosim.org/shenzhen2026/) at [GOSIM Shenzhen 2026](https://shenzhen2026.gosim.org/). If you're there, come by and say hi!
+<p align="center">
+  <a href="https://spotlight.gosim.org/shenzhen2026/"><img src="docs/assets/gosim-spotlight.svg" alt="Featured in the GOSIM Spotlight, Shenzhen 2026" width="250" height="55"></a>
+  <a href="https://trendshift.io/repositories/204367?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-204367"><img src="https://trendshift.io/api/badge/repositories/204367" alt="arnegiacomo%2Ffugleramme | Trendshift" width="250" height="55"></a>
+</p>
 
 Live demo: **[fugleramme.arnegiacomo.dev](https://fugleramme.arnegiacomo.dev)** shows the birds heard in my garden in Bergen, Norway, right now. More frames around the world in the [Showcase](https://arnegiacomo.dev/fugleramme/showcase/). Full docs: **[arnegiacomo.dev/fugleramme](https://arnegiacomo.dev/fugleramme/)**
 
@@ -47,11 +49,13 @@ updates itself.
 
 Already run BirdNET-Go? Point the frame at it, on the same machine or anywhere on your network.
 
+No mic or few birds in your area? Point it at a public [BirdWeather](docs/operations.md#using-birdweather-instead-of-birdnet-go) station instead - your own or anyone's.
+
 > [!TIP]
 > The e-ink panel on a Pi is what makes it a picture frame, but neither is required. Fugleramme also runs in a
 > container on basically anything - a homelab, a NAS, an old laptop - and the page takes the shape of whatever
-> shows it: a TV, an HDMI display, an external e-ink panel, any browser, or your desktop wallpaper. Everything
-> runs on your own hardware and works fully offline. See [Container](docs/container.md) and
+> shows it: a TV, an HDMI display, an external e-ink panel, any browser, or your desktop wallpaper. With BirdNET-Go,
+> everything runs on your own hardware and works fully offline. See [Container](docs/container.md) and
 > [Screens](docs/screens.md).
 
 ## Hardware
@@ -167,6 +171,7 @@ Fugleramme shares no code or art with them.
 
 ## Built on fugleramme
 
+- [tesserae-widget-fugleramme](https://github.com/dmellok/tesserae-widget-fugleramme) - fugleramme modes and art as a widget for Tesserae
 - [fugleramme-samsung-frame](https://github.com/conradj/fugleramme-samsung-frame) - sends the collage to a Samsung Frame TV in Art Mode
 - [birdnet-frame](https://github.com/icecoldfire/birdnet-frame) - a Docker container that sends the collage to a Samsung Frame TV in Art Mode
 - [birdnet_eink](https://github.com/Sidiox/birdnet_eink) - the artwork on a LilyGO T5 4.7" ESP32 e-ink display
@@ -192,5 +197,7 @@ Fugleramme shares no code or art with them.
 - BirdNET scientific-name aliases (`assets/birdnet_aliases.json`):
   [OpenFauna](https://github.com/tphakala/openfauna)'s compiled taxonomic alias
   map, CC BY-SA 4.0 - see [`assets/ATTRIBUTION.md`](assets/ATTRIBUTION.md).
+- Kiosk icons (`src/fugleramme/web/static/`): cut from a von Wright plate,
+  CC BY-SA 4.0 - see [`assets/ATTRIBUTION.md`](assets/ATTRIBUTION.md#kiosk-icons).
 - Docs search (`docs/assets/fuse.min.js`): [Fuse.js](https://www.fusejs.io/) by
   Kiro Risk, Apache 2.0.

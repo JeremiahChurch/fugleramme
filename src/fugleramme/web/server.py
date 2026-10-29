@@ -37,12 +37,11 @@ from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import ClassVar
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 
-from .. import __version__, e6, modes, updates
+from .. import __version__, buttons, e6, modes, updates
 from ..languages import namer
-from ..panel import Panel, resolution_of
-from ..picks import Picks
+from ..panel import Panel, resolution_of, to_glass
 from ..render.paper import paper_tile
 from ..settings import Settings, SettingsStore, merged
 from ..source import Source, Unavailable
@@ -58,7 +57,9 @@ JSON = "application/json"
 
 # What a password covers (#52). The kiosk stays open whatever is set: it is the
 # product, and the demo page and the container's healthcheck read it as strangers.
-GATED = frozenset({"/admin", "/preview.png", "/species", "/update", "/detector", LOGOUT})
+GATED = frozenset(
+    {"/admin", "/preview.png", "/species", "/stations", "/update", "/detector", LOGOUT}
+)
 
 COOKIE = "fugleramme_session"
 SESSION_SECONDS = 7 * 24 * 60 * 60  # a week, the session BirdNET-Go hands out
@@ -79,6 +80,12 @@ FILES = {
     "/index.html": ("kiosk.html", HTML),
     "/admin.css": ("admin.css", "text/css; charset=utf-8"),
     "/admin.js": ("admin.js", "text/javascript; charset=utf-8"),
+    # What a phone or tablet saves to its home screen. iOS asks for the touch icon
+    # at the root even on a page that does not link it.
+    "/apple-touch-icon.png": ("apple-touch-icon.png", "image/png"),
+    "/icon-512.png": ("icon-512.png", "image/png"),
+    "/favicon.png": ("favicon.png", "image/png"),
+    "/manifest.webmanifest": ("manifest.webmanifest", "application/manifest+json"),
 }
 
 
@@ -113,6 +120,11 @@ def _valid(key: bytes, cookie: str) -> bool:
     return when > time.time() and hmac.compare_digest(cookie, _sign(key, when))
 
 
+def _retry_after(status: int) -> dict[str, str] | None:
+    # A refusal says when to come back: the window is what the limiter forgives after.
+    return {"Retry-After": str(WINDOW)} if status == 429 else None
+
+
 def _set_cookie(value: str, seconds: int) -> str:
     # No Secure: the frame is http://<pi>:8080 and the flag would drop the cookie
     # on every LAN install. Lax keeps it off another site's cross-site POST.
@@ -123,14 +135,13 @@ def make_handler(
     source: Source,
     images_dir: Path,
     store: SettingsStore,
-    picks: Picks,
     panel: Panel | None,
     status: Status,
 ):
     def glass(settings: Settings) -> tuple[int, int] | None:
         """The panel the page is laid out for, or None: nothing for the kiosk to lock to."""
         if panel or settings.external_panel:
-            return resolution_of(panel)
+            return resolution_of(panel, settings.external_panel_size)
         return None
 
     # Held across requests: an outage must not blank every viewer at once. Tied
@@ -140,6 +151,8 @@ def make_handler(
     # The panel page last packed for /frame.e6, the poll it carried, and the frame
     # it was packed from.
     packed: tuple[Frame, int, bytes] | None = None
+    # The same for /frame.png, which carries no poll.
+    pictured: tuple[Frame, bytes] | None = None
     # The kiosk polls every few seconds, so one warning per failed request would
     # never stop. Say it once, and again on recovery.
     unreachable = False
@@ -239,25 +252,17 @@ def make_handler(
             self.end_headers()
 
         def _login_page(self, error: str = "", status: int = 200):
-            # A refusal says when to come back: the window is what the limiter forgives after.
-            extra = {"Retry-After": str(WINDOW)} if status == 429 else None
-            self._send(status, admin.login_page(error).encode(), HTML, extra)
+            self._send(status, admin.login_page(error).encode(), HTML, _retry_after(status))
 
         def _sign_in(self, form: dict[str, list[str]]):
-            """The password is checked here and nowhere else."""
             settings = store.get()
             if not settings.admin_locked:
                 self._redirect("/admin")  # nothing to sign in to, and no secret to mint
                 return
-            client = self._client()
-            # Bytes: compare_digest refuses a str with an "ø" in it, and the form
-            # body is UTF-8, so the owner's own password would take the door off.
-            typed = form.get("password", [""])[0].encode()
-            refused, code = self._attempt(client, typed, settings.admin_password)
+            refused, code = self._password_refused(form, settings, "admin sign-in")
             if refused:
                 # Written with `guessing` released: a slow reader would hold every
                 # other sign-in behind it.
-                log.warning("Refused admin sign-in from %s: %s", client, refused)
                 self._login_page(refused, code)
                 return
             # Minted on the first sign-in rather than at startup, so a frame nobody
@@ -267,6 +272,31 @@ def make_handler(
             expires = int(time.time()) + SESSION_SECONDS
             cookie = _set_cookie(_sign(_key(settings), expires), SESSION_SECONDS)
             self._redirect("/admin", cookie)
+
+        def _press_refused(self, form: dict[str, list[str]]) -> tuple[str, int]:
+            """Whether a press is refused, and with what. A headless client cannot
+            hold a session, so a locked frame takes the admin password with each
+            press, validated the same way it is during sign in."""
+            settings = store.get()
+            if not settings.admin_locked:
+                return "", 200
+            if not form.get("password", [""])[0]:
+                return "Password required.", 401  # not a guess, so not counted
+            return self._password_refused(form, settings, "press")
+
+        def _password_refused(
+            self, form: dict[str, list[str]], settings: Settings, what: str
+        ) -> tuple[str, int]:
+            """The admin password is checked here and nowhere else: the sign-in and
+            /press post it the same way, and both are held to one limit."""
+            client = self._client()
+            # Bytes: compare_digest refuses a str with an "ø" in it, and the form
+            # body is UTF-8, so the owner's own password would take the door off.
+            typed = form.get("password", [""])[0].encode()
+            refused, code = self._attempt(client, typed, settings.admin_password)
+            if refused:
+                log.warning("Refused %s from %s: %s", what, client, refused)
+            return refused, code
 
         def _attempt(self, client: str, typed: bytes, password: str) -> tuple[str, int]:
             """Whether this guess is refused, and with what. The check and the record
@@ -318,7 +348,6 @@ def make_handler(
             return modes.context(
                 source,
                 images_dir,
-                picks,
                 settings,
                 namer(settings.primary_language, settings.secondary_language, store.path.parent),
                 settings.web_size(attached),
@@ -348,22 +377,42 @@ def make_handler(
             settings = replace(self._edited(), web_lock=True)
             self._send_cached(modes.png_bytes(self._context(settings)), "image/png")
 
-        def _e6(self):
-            # The loop's page, not a render of its own: it is already dithered, paced
-            # and held through an outage.
-            nonlocal packed
-            settings = store.get()
-            if not settings.external_panel:
+        def _external_frame(self) -> Frame | None:
+            """The loop's page for an external panel, or None once refused. Not a
+            render of its own: it is already dithered, paced and held through an outage."""
+            if not store.get().external_panel:
                 self._send(404, b"not found", "text/plain")
-                return
-            frame = status.frame
+                return None
+            frame = status.frame  # once: the loop may hand over a page between two reads
             if frame is None:
                 self._send(503, b"no page rendered yet", "text/plain")
+            return frame
+
+        def _e6(self):
+            nonlocal packed
+            frame = self._external_frame()
+            if frame is None:
                 return
-            poll = settings.refresh_minutes
+            if sorted(frame[0].size) != sorted(e6.GLASS):
+                self._send(404, b'/frame.e6 is only for the 13.3" panel', "text/plain")
+                return
+            poll = store.get().refresh_minutes
             if packed is None or packed[0] is not frame or packed[1] != poll:
                 packed = (frame, poll, e6.encode(*frame, poll))
             self._send_cached(packed[2], "application/octet-stream")
+
+        def _frame_png(self):
+            # For a panel driven through inky: in the panel's native orientation, so it
+            # can be pushed through set_image without rotating.
+            nonlocal pictured
+            frame = self._external_frame()
+            if frame is None:
+                return
+            if pictured is None or pictured[0] is not frame:
+                buffer = io.BytesIO()
+                to_glass(*frame).save(buffer, format="PNG")
+                pictured = (frame, buffer.getvalue())
+            self._send_cached(pictured[1], "image/png")
 
         def _state(self):
             # Cheap enough to poll: one grouped query, no render.
@@ -381,15 +430,26 @@ def make_handler(
                 JSON,
             )
 
+        def _stations(self):
+            query = self._query()
+            try:
+                lat, lon = float(query["lat"][0]), float(query["lon"][0])
+            except (KeyError, ValueError):
+                self._send(400, b"bad place", "text/plain")
+                return
+            self._send(200, json.dumps(admin.stations_near(lat, lon)).encode(), JSON)
+
         def _admin(self):
             settings = store.get()
             html = admin.page(
                 self._context(settings),
                 settings,
                 status,
-                resolution_of(panel),
+                resolution_of(panel, settings.external_panel_size),
                 panel is not None,
                 store.path.parent,
+                self._query().get("refused", [""])[0],
+                self._query().get("stations", [""])[0],
             )
             self._send(200, html.encode(), HTML)
 
@@ -416,10 +476,12 @@ def make_handler(
         ROUTES: ClassVar[dict] = {
             "/collage.png": _page_png,
             "/frame.e6": _e6,
+            "/frame.png": _frame_png,
             "/preview.png": _preview_png,
             "/state": _state,
             "/paper.png": _paper,
             "/species": _species,
+            "/stations": _stations,
             "/admin": _admin,
             "/update": _update,
             "/health": _health,
@@ -496,6 +558,21 @@ def make_handler(
                     store.update(session_secret=secrets.token_urlsafe(32))
                 self._redirect(LOGIN, _set_cookie("", 0))
                 return
+            if route == "/press":
+                if not store.get().external_panel:
+                    self._send(404, b"not found", "text/plain")
+                    return
+                refused, code = self._press_refused(form)
+                if refused:
+                    self._send(code, refused.encode(), "text/plain", _retry_after(code))
+                    return
+                button = form.get("button", [""])[0]
+                if button not in buttons.LABELS:
+                    self._send(400, b"no such button", "text/plain")
+                    return
+                buttons.press(button, store, images_dir)
+                self._send(204, b"", "text/plain")
+                return
             # POST, not a query: the connection test carries a password.
             if route == "/detector":
                 answer = admin.connection(form, store.get())
@@ -518,6 +595,12 @@ def make_handler(
                     status.reboot_error = str(error)
             else:
                 changes = admin.form_changes(form)
+                refused = admin.refused(changes)
+                if refused:
+                    # The stations too, so the note can name the one it was refused for.
+                    held = {"refused": refused, "stations": changes.get("detector_station", "")}
+                    self._redirect(f"/admin?{urlencode(held)}")
+                    return
                 password = changes.get("admin_password")
                 # Without this the old password, set back, would revive the cookies it signed.
                 if password is not None and password != store.get().admin_password:
@@ -534,13 +617,12 @@ def serve(
     host: str,
     port: int,
     store: SettingsStore,
-    picks: Picks,
     panel: Panel | None = None,
     status: Status | None = None,
 ) -> ThreadingHTTPServer:
     """Start the kiosk on a daemon thread. Port 0 asks the OS for one - read it
     back from `server_address[1]`."""
-    handler = make_handler(source, images_dir, store, picks, panel, status or Status())
+    handler = make_handler(source, images_dir, store, panel, status or Status())
     httpd = ThreadingHTTPServer((host, port), handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     return httpd

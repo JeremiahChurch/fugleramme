@@ -7,12 +7,14 @@ from __future__ import annotations
 import json
 import threading
 import time
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
 
-from fugleramme import languages
+from fugleramme import birdweather, fake, languages
 from fugleramme.api import ApiSource, Configured
+from fugleramme.birdweather import BirdWeatherSource
 from fugleramme.languages import (
     NONE,
     SCIENTIFIC,
@@ -25,6 +27,7 @@ from fugleramme.languages import (
     ordered,
 )
 from fugleramme.settings import Settings, SettingsStore
+from fugleramme.source import BIRDNET_GO, BIRDWEATHER
 from fugleramme.web.admin import _language_select
 
 NB = "nb"  # the fake's own dictionary code
@@ -253,6 +256,9 @@ DATE = datetime(2026, 8, 16, 7, 42).astimezone()
         # and only some of them join the day and the time with a comma.
         ("hu", "2026. augusztus 16.", "augusztus 16. 7:42"),
         ("lv", "2026. gada 16. augusts", "16. augusts 07:42"),
+        # A region is babel's too: only Portugal's Portuguese joins with a comma.
+        ("pt-br", "16 de agosto de 2026", "16 de agosto 07:42"),
+        ("pt-pt", "16 de agosto de 2026", "16 de agosto, 07:42"),
     ],
 )
 def test_a_plates_date_reads_in_the_primary_language(code, date, moment):
@@ -570,3 +576,148 @@ def test_the_fake_serves_its_own_species_language(detector, tmp_path):
 def test_an_unoffered_station_language_keeps_its_name():
     select = _language_select("primary_language", [(SCIENTIFIC, "Scientific")], STATION)
     assert f"{STATION_NAME} (unavailable)" in select
+
+
+# -- BirdWeather ------------------------------------------------------------------
+
+SPARROW, MAGPIE = "Passer domesticus", "Pica pica"
+
+
+def _heard(*names: str) -> list[fake.Detection]:
+    """One detection of each, an hour apart back from now. Live: appending to it
+    is the station hearing another."""
+    now = datetime.now(UTC)
+    return [
+        fake.Detection(i, now - timedelta(hours=i), name, 0.9, False)
+        for i, name in enumerate(names)
+    ]
+
+
+def _station(detector, rows=None, **kwargs):
+    """A fake BirdWeather station, as (its page, which the frame is pointed at, server)."""
+    rows = _heard("Turdus merula", SPARROW, MAGPIE) if rows is None else rows
+    url, httpd = detector(rows=rows, birdweather=True, **kwargs)
+    return f"{url}/stations/{fake.STATION_ID}", httpd
+
+
+def test_a_birdweather_station_offers_the_languages_its_birds_are_named_in(detector, tmp_path):
+    """In the frame's codes. A partial Traditional `zh` and `en-UK` are not
+    offered, and nor is STATION, which is BirdNET-Go's."""
+    languages.use(BirdWeatherSource(_station(detector)[0]))
+
+    assert catalog(tmp_path) == {
+        SCIENTIFIC: "Scientific",
+        "en": "English",
+        "nb": "Norwegian Bokmål",
+        "de": "German",
+        "zh": "Chinese",
+        "pt-br": "Portuguese (Brazil)",
+        "pt-pt": "Portuguese (Portugal)",
+    }
+    assert languages.catalog_failure() == ""
+
+
+def test_birdweather_names_come_in_the_frames_codes(detector, tmp_path):
+    languages.use(BirdWeatherSource(_station(detector)[0]))
+
+    assert namer("nb", "en", tmp_path).label("Turdus merula") == "Svarttrost\n(Eurasian Blackbird)"
+    assert namer("pt-br", "pt-pt", tmp_path).inline(SPARROW) == "Pardal (Pardal-do-telhado)"
+    # English is the species' own name, never BirdWeather's British one.
+    assert namer("en", NONE, tmp_path).label(MAGPIE) == "Eurasian Magpie"
+
+
+def test_a_reclassified_bird_takes_its_current_names(detector, tmp_path):
+    """BirdWeather keeps the legacy and the current name as two species, named
+    apart: the legacy one has a Traditional name under Simplified's code."""
+    page, _httpd = _station(detector, _heard(fake.GOSHAWK_WAS, fake.GOSHAWK_IS))
+    languages.use(BirdWeatherSource(page))
+
+    assert namer("zh", "en", tmp_path).parts(fake.GOSHAWK_IS) == ("苍鹰", "Eurasian Goshawk")
+    assert namer("nb", NONE, tmp_path).label(fake.GOSHAWK_IS) == "Hønsehauk"  # arrives lowercase
+
+    # Heard only under its old name, it is still named under the current one.
+    languages.use(BirdWeatherSource(_station(detector, _heard(fake.GOSHAWK_WAS))[0]))
+    assert namer("en", NONE, tmp_path).label(fake.GOSHAWK_IS) == "Northern Goshawk"
+
+
+def test_a_newly_heard_bird_is_named_with_one_small_question(detector, tmp_path, monkeypatch):
+    """BirdWeather has no working ETag and many frames can share a station, so
+    a species' names are asked for once, and a quiet minute asks nothing."""
+    asked, written = [], []
+    answer = fake.graphql
+
+    def spy(rows, query, variables):
+        if "allSpecies" in query:
+            asked.append(variables["ids"])
+        return answer(rows, query, variables)
+
+    monkeypatch.setattr(fake, "graphql", spy)
+    monkeypatch.setattr(languages, "_write", lambda path, payload: written.append(path.name))
+    now = [0.0]
+    monkeypatch.setattr(birdweather, "time", SimpleNamespace(monotonic=lambda: now[0]))
+    rows = _heard("Turdus merula")
+    languages.use(BirdWeatherSource(_station(detector, rows)[0]))
+
+    def minute_later() -> None:
+        now[0] += birdweather._TTL + 1
+        languages._translations = (0.0, *languages._translations[1:])
+
+    assert namer("nb", NONE, tmp_path).label(MAGPIE) == MAGPIE  # not heard yet
+    rows.append(fake.Detection(len(rows), datetime.now(UTC), MAGPIE, 0.9, False))
+    minute_later()
+
+    assert namer("nb", NONE, tmp_path).label(MAGPIE) == "Skjære"
+    assert asked == [["35"], ["52"]]  # the newcomer alone
+
+    minute_later()
+    namer("nb", NONE, tmp_path)
+    assert asked == [["35"], ["52"]]
+    assert written == ["birdweather.json"] * 2  # and an unchanged answer is not rewritten
+
+
+def test_birdweather_names_outlive_the_station_but_never_reach_another(detector, tmp_path):
+    page, httpd = _station(detector)
+    languages.use(BirdWeatherSource(page))
+    assert "nb" in catalog(tmp_path)
+
+    httpd.shutdown()
+    httpd.server_close()
+    languages._translations = None  # a restart, with BirdWeather gone
+    languages.use(BirdWeatherSource(page))
+    assert "nb" in catalog(tmp_path)
+    assert languages.catalog_failure() == ""  # the menu works
+
+    languages.use(BirdWeatherSource(_station(detector, _heard())[0]))
+    assert catalog(tmp_path) == UNHEARD
+
+
+@pytest.mark.parametrize(
+    ("given", "number", "why"),
+    [
+        ({"down": True}, fake.STATION_ID, "detector unreachable"),
+        ({"rows": []}, fake.STATION_ID, "no birds heard yet"),
+        ({}, "999", "no such station"),
+    ],
+)
+def test_a_birdweather_station_with_no_names_says_why(detector, tmp_path, given, number, why):
+    url, _httpd = detector(birdweather=True, **given)
+    languages.use(BirdWeatherSource(f"{url}/stations/{number}"))
+
+    assert catalog(tmp_path) == UNHEARD
+    assert languages.catalog_failure() == why
+
+
+def test_the_names_follow_the_detectors_kind(detector, tmp_path):
+    """Both kinds' caches sit side by side, each keyed by its own station."""
+    birdnet, _one = detector()
+    store = SettingsStore(
+        tmp_path / "s.json",
+        Settings(detector_kind=BIRDWEATHER, detector_station=_station(detector)[0]),
+    )
+    languages.use(Configured(store))
+    assert namer("nb", NONE, tmp_path).label(MAGPIE) == "Skjære"
+    assert STATION not in catalog(tmp_path)
+
+    store.update(detector_kind=BIRDNET_GO, detector_url=birdnet)
+    assert catalog(tmp_path)[STATION] == "Estonian (BirdNET-Go locale)"
+    assert namer("nb", NONE, tmp_path).label("Turdus merula") == "Svarttrost"

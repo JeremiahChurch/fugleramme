@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from fugleramme import fake, languages
+from fugleramme import fake, languages, service
 from fugleramme.api import ApiSource
 from fugleramme.names import SUFFIXES
 from fugleramme.render import collage
@@ -69,6 +69,7 @@ def _clean_language_caches(monkeypatch):
     monkeypatch.setattr(languages, "_catalog", None)
     monkeypatch.setattr(languages, "_dicts", {})
     monkeypatch.setattr(languages, "_station_locale", None)
+    monkeypatch.setattr(languages, "_translations", None)
 
 
 @pytest.fixture(autouse=True)
@@ -78,6 +79,13 @@ def _restore_signal_handlers():
     yield
     for sig, handler in handlers.items():
         signal.signal(sig, handler)
+
+
+@pytest.fixture(autouse=True)
+def _no_panel(monkeypatch):
+    """On a Pi with the frame stopped, `service.run` would find the real panel and
+    draw every test's page on the glass."""
+    monkeypatch.setattr(service, "init_panel", lambda: None)
 
 
 @pytest.fixture(autouse=True)

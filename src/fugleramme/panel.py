@@ -16,7 +16,7 @@ import logging
 
 from PIL import Image
 
-from .config import FALLBACK_PANEL_RESOLUTION
+from .config import DEFAULT_PANEL_SIZE, PANEL_SIZES
 
 log = logging.getLogger(__name__)
 
@@ -45,12 +45,21 @@ class Panel:
         if image.size != self.resolution:
             raise ValueError(f"image is {image.size}, panel is {self.resolution}")
         self._device.set_image(image)
-        self._device.show()  # blocks ~35s on the 13.3" while the panel refreshes
+        self._device.show()  # blocks ~20s on the 13.3" while the panel refreshes
 
 
-def resolution_of(panel: Panel | None) -> tuple[int, int]:
-    """The shape the panel's page is laid out for."""
-    return panel.resolution if panel else FALLBACK_PANEL_RESOLUTION
+def external_resolution(panel: Panel | None, size: str) -> tuple[int, int]:
+    """The shape the external panel's page is laid out for: the picked size,
+    else this frame's Inky's, else the 13.3"."""
+    if size:
+        return PANEL_SIZES[size]
+    return panel.resolution if panel else PANEL_SIZES[DEFAULT_PANEL_SIZE]
+
+
+def resolution_of(panel: Panel | None, size: str) -> tuple[int, int]:
+    """The shape the panel's page is laid out for: this frame's Inky's, else the
+    external panel's."""
+    return panel.resolution if panel else external_resolution(None, size)
 
 
 def init_panel() -> Panel | None:

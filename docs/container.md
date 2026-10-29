@@ -1,7 +1,8 @@
 # Container
 
 Fugleramme as a container image, for a homelab or any machine with docker.
-Connect it to a BirdNET-Go you already run, or bring both up together, and see
+Connect it to a BirdNET-Go you already run, bring both up together, or use a
+public [BirdWeather station](operations.md#using-birdweather-instead-of-birdnet-go), and see
 the collage in a browser.
 
 > [!NOTE]
@@ -57,14 +58,18 @@ Every setting on the admin page can be seeded with `FUGLERAMME_<NAME>`:
 ```yaml
     environment:
       FUGLERAMME_DETECTOR_URL: http://birdnet.local:8080
+      FUGLERAMME_DETECTOR_PUBLIC_URL: ""             # only if your browser reaches BirdNET-Go at another address
       FUGLERAMME_DETECTOR_PASSWORD: my-secret-password
       FUGLERAMME_DETECTOR_USERNAME: birdnet-client   # only if you changed BirdNET-Go's client id
+      FUGLERAMME_DETECTOR_KIND: birdnet-go           # birdnet-go | birdweather
+      FUGLERAMME_DETECTOR_STATION: ""                # BirdWeather station ID(s), comma-separated
       FUGLERAMME_MODE: collage                       # collage | latest | arrival
       FUGLERAMME_WEB_RESOLUTION: 1080p               # 720p | 1080p | 1440p | 4K
       FUGLERAMME_WEB_ASPECT: "4:3"                   # 16:9 | 16:10 | 4:3 | 3:2
       FUGLERAMME_WEB_PORTRAIT: "false"
       FUGLERAMME_ROTATION: 0                         # 0 | 90 | 180 | 270
       FUGLERAMME_EXTERNAL_PANEL: "false"             # serve /frame.e6 for an external e-ink panel
+      FUGLERAMME_EXTERNAL_PANEL_SIZE: "13.3"         # 4 | 5.7 | 7.3 | 13.3 inches
       FUGLERAMME_LOOKBACK_HOURS: 24                  # 0.25 … 720, or 0 for all time
       FUGLERAMME_REFRESH_MINUTES: 0                  # 0 | 5 | 10 | 15 | 30 | 60
       FUGLERAMME_SPECIES_LIMIT: 40                   # 0 for no limit
@@ -99,7 +104,7 @@ Two more variables are not settings, so they apply on every start:
 
 ## The volume
 
-`/data` holds the settings, the current artwork picks, the cached species names dictionaries and
+`/data` holds the settings, the cached species names dictionaries and
 the rendered page. A bind mount instead of a named volume has to be writable by
 uid 1000:
 

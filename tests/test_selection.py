@@ -9,23 +9,31 @@ from __future__ import annotations
 from PIL import Image
 
 from fugleramme.names import normalize
-from fugleramme.picks import Picks
 from fugleramme.render import collage
-from fugleramme.render.collage import RANK_RAREST, RANK_RAREST_EVER
+from fugleramme.render.collage import RANK_LAST_HEARD, RANK_RAREST, RANK_RAREST_EVER
 from fugleramme.settings import DEFAULT_LIMIT, Settings
 
 
 class _Counted:
     """Just enough of a Source for gather_entries: who was heard, how often,
-    and how often ever (`hours` of 0) where the two differ."""
+    how often ever (`hours` of 0) where the two differ, and in what order."""
 
-    def __init__(self, counts: dict[str, int], ever: dict[str, int] | None = None):
+    def __init__(
+        self,
+        counts: dict[str, int],
+        ever: dict[str, int] | None = None,
+        newest: list[str] | None = None,
+    ):
         self._counts = counts
         self._ever = ever or counts
+        self._newest = newest or []
 
     def species_since(self, hours: int = 24) -> list[tuple[str, int]]:
         counts = self._ever if hours == 0 else self._counts
         return sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+
+    def last_heard(self, hours: int = 24) -> list[str]:
+        return self._newest
 
 
 def _garden(tmp_path, count: int, drawn: int | None = None) -> list[str]:
@@ -79,6 +87,15 @@ def test_the_all_time_rarest_ranks_on_the_record_not_the_window(tmp_path):
     assert kept(RANK_RAREST) == [names[0]]  # a window tie falls back to the name
 
 
+def test_the_latest_heard_keeps_the_last_birds_to_call(tmp_path):
+    names = _garden(tmp_path, 6)
+    source = _Counted({name: i + 1 for i, name in enumerate(names)}, newest=names[::2])
+
+    kept = collage.selected_species(source, tmp_path, "classic", limit=2, ranking=RANK_LAST_HEARD)
+
+    assert kept == [names[0], names[2]]
+
+
 def test_a_limit_keeps_exactly_that_many_and_a_fresh_frame_carries_one(tmp_path):
     names = _garden(tmp_path, 60)
     assert Settings().species_limit == DEFAULT_LIMIT
@@ -109,9 +126,7 @@ def test_the_entries_carry_the_artwork_each_selected_bird_is_wearing(tmp_path):
     names = _garden(tmp_path, 6)
     source = _Counted({name: i + 1 for i, name in enumerate(names)})
 
-    entries = collage.gather_entries(
-        source, tmp_path, "classic", Picks(tmp_path / "artwork.json"), limit=3
-    )
+    entries = collage.gather_entries(source, tmp_path, "classic", 0, limit=3)
 
     assert [name for name, _path in entries] == sorted(names[-3:])
     assert all(path is not None for _name, path in entries)

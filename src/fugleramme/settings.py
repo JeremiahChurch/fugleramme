@@ -22,6 +22,8 @@ from .config import (
     DEFAULT_DETECTOR_URL,
     DEFAULT_WEB_ASPECT,
     DEFAULT_WEB_RESOLUTION,
+    PANEL_SIZES,
+    SAME_AS_INKY,
     WEB_ASPECTS,
     WEB_HEIGHTS,
 )
@@ -30,6 +32,14 @@ from .modes import DEFAULT_MODE, MODES
 from .render.collage import DEFAULT_MARGIN, DEFAULT_RANKING, NO_LIMIT, RANKINGS
 from .render.fonts import DEFAULT_FONT, DEFAULT_LABEL_SIZE, FONTS, LABEL_SIZES
 from .render.packing import DEFAULT_LAYOUT, LAYOUTS
+from .source import (
+    BIRDNET_GO,
+    BIRDWEATHER,
+    DETECTOR_KINDS,
+    station_fault,
+    station_pages,
+    with_scheme,
+)
 
 log = logging.getLogger(__name__)
 
@@ -97,6 +107,8 @@ class Settings:
     rotation: int = 0
     # Serves the panel page at /frame.e6 for an external e-ink panel.
     external_panel: bool = False
+    # The external panel's size, a PANEL_SIZES key; SAME_AS_INKY until one is picked.
+    external_panel_size: str = SAME_AS_INKY
     lookback_hours: float = 24
     refresh_minutes: int = 0
     # The collage's own default, as a percent.
@@ -127,10 +139,21 @@ class Settings:
     secondary_language: str = NONE
     label_font: str = DEFAULT_FONT
     label_size: str = DEFAULT_LABEL_SIZE
+    # Which detector the frame reads: the BirdNET-Go at `detector_url`, or the
+    # BirdWeather stations whose pages `detector_station` lists, separated by commas
+    # ("" until one is saved; a file from before several were read holds one page).
+    # Each keeps its own, so switching back finds the other as it was. Unsaved, the
+    # kind is BirdNET-Go: an update keeps settings.json, and one naming no kind is
+    # a BirdNET-Go's.
+    detector_kind: str = BIRDNET_GO
+    detector_url: str = DEFAULT_DETECTOR_URL
+    # Where a browser reaches the same BirdNET-Go, for the admin's links, when the
+    # address above is one only the frame can use. "" links `detector_url`.
+    detector_public_url: str = ""
+    detector_station: str = ""
     # Only needed for a BirdNET-Go that authenticates. The username is not in the
     # admin: BirdNET-Go asks for a password and matches the name against a fixed
     # client id, so it is here only for an install that changed that id.
-    detector_url: str = DEFAULT_DETECTOR_URL
     detector_username: str = ""
     detector_password: str = ""
     # The door (#52): shut only with this on and a password saved. Off is also how
@@ -150,6 +173,11 @@ class Settings:
         """Whether the admin actually asks for anything. Either half alone leaves
         it open: a password nobody is asked for, or a switch with nothing behind it."""
         return self.require_sign_in and bool(self.admin_password)
+
+    @property
+    def detector_address(self) -> str:
+        """Where the frame reads its birds: the address of `detector_kind`'s own."""
+        return self.detector_station if self.detector_kind == BIRDWEATHER else self.detector_url
 
     def oriented(self, resolution: tuple[int, int]) -> tuple[int, int]:
         """Apply the rotation's aspect to a landscape-native (w, h)."""
@@ -248,12 +276,23 @@ def _language(value, default: str) -> str:
 
 
 def _url(value, default: str) -> str:
-    """An http(s) base address; the trailing slash goes so paths join cleanly.
-    Whether anything answers there is settled at request time, not here."""
+    """An http(s) base address, http:// when none is typed; the trailing slash
+    goes so paths join cleanly. Whether anything answers there is settled at
+    request time, not here."""
     if not isinstance(value, str):
         return default
-    value = value.strip().rstrip("/")
+    value = with_scheme(value).rstrip("/")
     return value if _URL_RE.fullmatch(value) else default
+
+
+def _station(value, default: str) -> str:
+    """BirdWeather stations' pages separated by commas, from pages or IDs alone,
+    or "" for none."""
+    if not isinstance(value, str):
+        return default
+    pages = station_pages(value)
+    readable = not station_fault(pages) and all(_URL_RE.fullmatch(page) for page in pages)
+    return ", ".join(pages) if readable else default
 
 
 def _text(value, default: str) -> str:
@@ -292,6 +331,11 @@ def _coerce(raw: dict, base: Settings | None = None) -> Settings:
         ),
         rotation=rotation,
         external_panel=_as_bool(raw.get("external_panel"), d.external_panel),
+        external_panel_size=_one_of(
+            str(raw.get("external_panel_size", d.external_panel_size)),
+            (SAME_AS_INKY, *PANEL_SIZES),
+            d.external_panel_size,
+        ),
         lookback_hours=_as_hours(raw.get("lookback_hours"), d.lookback_hours),
         refresh_minutes=_as_int(raw.get("refresh_minutes"), d.refresh_minutes, 0, 24 * 60),
         margin=_as_int(raw.get("margin"), d.margin, 0, MARGIN_CEILING),
@@ -313,7 +357,12 @@ def _coerce(raw: dict, base: Settings | None = None) -> Settings:
         secondary_language=_language(raw.get("secondary_language"), d.secondary_language),
         label_font=_one_of(str(raw.get("label_font", d.label_font)), FONTS, d.label_font),
         label_size=_one_of(str(raw.get("label_size", d.label_size)), LABEL_SIZES, d.label_size),
+        detector_kind=_one_of(
+            str(raw.get("detector_kind", d.detector_kind)), DETECTOR_KINDS, d.detector_kind
+        ),
         detector_url=_url(raw.get("detector_url"), d.detector_url),
+        detector_public_url=_url(raw.get("detector_public_url"), d.detector_public_url),
+        detector_station=_station(raw.get("detector_station"), d.detector_station),
         detector_username=_text(raw.get("detector_username"), d.detector_username),
         detector_password=_text(raw.get("detector_password"), d.detector_password),
         require_sign_in=_as_bool(raw.get("require_sign_in"), d.require_sign_in),

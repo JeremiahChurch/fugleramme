@@ -28,8 +28,10 @@ FROM python:3.12-slim-bookworm
 
 # python:slim carries no zone data, and the frame's day is the local one.
 # libfribidi0 lets Pillow shape Arabic, Hebrew and Malayalam names.
+# ca-certificates is already in the base, but naming it upgrades it: urllib trusts
+# the system store, so a build takes Debian's latest roots even off a stale base.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends tzdata libfribidi0 \
+    && apt-get install -y --no-install-recommends tzdata libfribidi0 ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --gid 1000 fugleramme \
